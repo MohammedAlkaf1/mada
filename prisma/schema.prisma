@@ -1,0 +1,558 @@
+generator client {
+  provider = "prisma-client"
+  output = "../src/generated/prisma"
+}
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Accounts and workspaces ─────────────────────────────────────────
+// One account per email across the platform (BR-02). An account reaches a
+// workspace only through a membership, so every tenant read starts there.
+
+model User {
+  id String @id @default(uuid())
+  email String @unique
+  name String
+  password String
+  verified Boolean @default(false)
+  active Boolean @default(true)
+  mfaSecret String?
+  mfaEnabled Boolean @default(false)
+  mfaLastStep Int @default(0)
+  sessionVersion Int @default(1)
+  reminders Boolean @default(true)
+  lastSeenAt DateTime?
+  platformOperator Boolean @default(false)
+  createdAt DateTime @default(now())
+  memberships Membership[]
+}
+
+model Tenant {
+  id String @id @default(uuid())
+  slug String @unique
+  nameAr String
+  nameEn String
+  kind String @default("Company")
+  status String @default("Active")
+  brandColor String @default("#0E6E6B")
+  logoMime String?
+  logo Bytes?
+  timezone String @default("Asia/Riyadh")
+  retentionDays Int @default(30)
+  deleteAt DateTime?
+  createdAt DateTime @default(now())
+  memberships Membership[]
+  subscription Subscription?
+}
+
+/// Admin, Instructor or Learner. Any role can also be enrolled in a course,
+/// which is how one membership combines roles in practice.
+model Membership {
+  id String @id @default(uuid())
+  userId String
+  tenantId String
+  role String
+  active Boolean @default(true)
+  title String @default("")
+  expiresAt DateTime?
+  supportGrant Boolean @default(false)
+  createdAt DateTime @default(now())
+  user User @relation(fields:[userId],references:[id])
+  tenant Tenant @relation(fields:[tenantId],references:[id])
+  groups GroupMember[]
+  enrollments Enrollment[]
+  @@unique([tenantId,userId])
+  @@unique([tenantId,id])
+}
+
+model Group {
+  id String @id @default(uuid())
+  tenantId String
+  name String
+  description String @default("")
+  archivedAt DateTime?
+  createdAt DateTime @default(now())
+  members GroupMember[]
+  @@unique([tenantId,id])
+  @@unique([tenantId,name])
+}
+
+model GroupMember {
+  id String @id @default(uuid())
+  tenantId String
+  groupId String
+  membershipId String
+  addedAt DateTime @default(now())
+  group Group @relation(fields:[tenantId,groupId],references:[tenantId,id])
+  membership Membership @relation(fields:[tenantId,membershipId],references:[tenantId,id])
+  @@unique([groupId,membershipId])
+}
+
+// ── Courses ─────────────────────────────────────────────────────────
+// A course is a stable identity; what learners take is a version. Once a
+// version has enrollments its lessons, quiz and completion rules are frozen,
+// and a change of substance means a new version (FR-08).
+
+model Course {
+  id String @id @default(uuid())
+  tenantId String
+  title String
+  category String @default("")
+  instructorIds String[] @default([])
+  createdBy String
+  archivedAt DateTime?
+  createdAt DateTime @default(now())
+  versions CourseVersion[]
+  @@unique([tenantId,id])
+  @@index([tenantId])
+}
+
+model CourseVersion {
+  id String @id @default(uuid())
+  tenantId String
+  courseId String
+  number Int
+  status String @default("Draft")
+  title String
+  description String @default("")
+  coverAssetId String?
+  estimatedMinutes Int @default(0)
+  quizEnabled Boolean @default(false)
+  passPercent Int @default(70)
+  maxAttempts Int @default(3)
+  timeLimitMinutes Int?
+  publishedAt DateTime?
+  archivedAt DateTime?
+  createdAt DateTime @default(now())
+  version Int @default(1)
+  course Course @relation(fields:[tenantId,courseId],references:[tenantId,id])
+  modules Module[]
+  lessons Lesson[]
+  questions Question[]
+  enrollments Enrollment[]
+  @@unique([courseId,number])
+  @@unique([tenantId,id])
+  @@index([tenantId,status])
+}
+
+model Module {
+  id String @id @default(uuid())
+  tenantId String
+  versionId String
+  title String
+  position Int
+  courseVersion CourseVersion @relation(fields:[tenantId,versionId],references:[tenantId,id])
+  lessons Lesson[]
+  @@unique([tenantId,id])
+}
+
+/// Text, Pdf, Video or Link. Pdf and Video point at a scanned asset.
+model Lesson {
+  id String @id @default(uuid())
+  tenantId String
+  versionId String
+  moduleId String
+  title String
+  kind String
+  body String @default("")
+  url String?
+  assetId String?
+  durationSeconds Int @default(0)
+  required Boolean @default(true)
+  position Int
+  courseVersion CourseVersion @relation(fields:[tenantId,versionId],references:[tenantId,id])
+  module Module @relation(fields:[tenantId,moduleId],references:[tenantId,id])
+  progress LessonProgress[]
+  @@unique([tenantId,id])
+}
+
+/// Single choice or TrueFalse. The correct choice never leaves the server
+/// while an attempt is open.
+model Question {
+  id String @id @default(uuid())
+  tenantId String
+  versionId String
+  kind String @default("Single")
+  prompt String
+  choices Json @default("[]")
+  correct String
+  points Int @default(1)
+  position Int
+  courseVersion CourseVersion @relation(fields:[tenantId,versionId],references:[tenantId,id])
+  @@unique([tenantId,id])
+}
+
+// ── Learning records ────────────────────────────────────────────────
+
+model Enrollment {
+  id String @id @default(uuid())
+  tenantId String
+  membershipId String
+  courseId String
+  versionId String
+  groupId String?
+  assignedBy String
+  status String @default("NotStarted")
+  startsAt DateTime @default(now())
+  dueAt DateTime?
+  requiredTotal Int @default(0)
+  requiredDone Int @default(0)
+  quizPassed Boolean @default(false)
+  bestScore Float?
+  startedAt DateTime?
+  completedAt DateTime?
+  withdrawnAt DateTime?
+  reminderSentAt DateTime?
+  overdueSentAt DateTime?
+  createdAt DateTime @default(now())
+  membership Membership @relation(fields:[tenantId,membershipId],references:[tenantId,id])
+  courseVersion CourseVersion @relation(fields:[tenantId,versionId],references:[tenantId,id])
+  progress LessonProgress[]
+  attempts QuizAttempt[]
+  certificate Certificate?
+  @@unique([membershipId,versionId])
+  @@unique([tenantId,id])
+  @@index([tenantId,status])
+  @@index([tenantId,courseId])
+}
+
+/// Video progress keeps the watched intervals, so skipping to the end does
+/// not count as watching (FR-10).
+model LessonProgress {
+  id String @id @default(uuid())
+  tenantId String
+  enrollmentId String
+  lessonId String
+  position Float @default(0)
+  watched Json @default("[]")
+  watchedSeconds Float @default(0)
+  completedAt DateTime?
+  updatedAt DateTime @updatedAt
+  enrollment Enrollment @relation(fields:[tenantId,enrollmentId],references:[tenantId,id])
+  lesson Lesson @relation(fields:[tenantId,lessonId],references:[tenantId,id])
+  @@unique([enrollmentId,lessonId])
+}
+
+model QuizAttempt {
+  id String @id @default(uuid())
+  tenantId String
+  enrollmentId String
+  number Int
+  answers Json @default("{}")
+  startedAt DateTime @default(now())
+  deadlineAt DateTime?
+  submittedAt DateTime?
+  earned Int @default(0)
+  total Int @default(0)
+  score Float?
+  passed Boolean?
+  enrollment Enrollment @relation(fields:[tenantId,enrollmentId],references:[tenantId,id])
+  @@unique([enrollmentId,number])
+}
+
+/// Names and titles are copied at issue time so a later rename of the
+/// course or the person does not rewrite a document already handed out.
+model Certificate {
+  id String @id @default(uuid())
+  tenantId String
+  enrollmentId String @unique
+  serial String @unique
+  verifyToken String @unique
+  learnerName String
+  courseTitle String
+  tenantName String
+  score Float?
+  issuedAt DateTime @default(now())
+  status String @default("Valid")
+  revokedAt DateTime?
+  revokedBy String?
+  revokeReason String?
+  enrollment Enrollment @relation(fields:[tenantId,enrollmentId],references:[tenantId,id])
+  @@unique([tenantId,enrollmentId])
+  @@index([tenantId,issuedAt])
+}
+
+/// A file in private storage. The bytes live on disk or in S3, never in the
+/// database; the row is what access checks and the storage quota read.
+model Asset {
+  id String @id @default(uuid())
+  tenantId String
+  uploadedBy String
+  name String
+  mime String
+  size Int
+  storageKey String @unique
+  status String @default("Pending")
+  failure String?
+  createdAt DateTime @default(now())
+  @@index([tenantId,status])
+}
+
+// ── Operations ──────────────────────────────────────────────────────
+
+model Audit {
+  id String @id @default(uuid())
+  tenantId String
+  actorId String
+  action String
+  entityId String
+  detail Json @default("{}")
+  correlationId String @default("")
+  createdAt DateTime @default(now())
+  @@index([tenantId,createdAt])
+  @@index([tenantId,action])
+}
+
+model Notification {
+  id String @id @default(uuid())
+  tenantId String
+  userId String
+  titleAr String
+  titleEn String
+  href String @default("")
+  read Boolean @default(false)
+  dedupeKey String? @unique
+  createdAt DateTime @default(now())
+  @@index([tenantId,userId])
+}
+
+model AuthAttempt {
+  key String @id
+  count Int @default(0)
+  resetAt DateTime
+}
+
+model Invitation {
+  id String @id @default(uuid())
+  tenantId String
+  email String
+  role String
+  tokenHash String @unique
+  expiresAt DateTime
+  usedAt DateTime?
+  createdAt DateTime @default(now())
+}
+
+model Outbox {
+  dedupeKey String? @unique
+  id String @id @default(uuid())
+  tenantId String
+  channel String @default("Email")
+  recipient String
+  subject String
+  body String
+  templateCode String?
+  status String @default("Queued")
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  providerRef String?
+  deliveredAt DateTime?
+  failure String?
+  createdAt DateTime @default(now())
+  @@index([tenantId,status])
+}
+
+model AuthToken {
+  id String @id @default(uuid())
+  userId String
+  tokenHash String @unique
+  purpose String
+  payload String?
+  expiresAt DateTime
+  usedAt DateTime?
+}
+
+model ExportJob {
+  id String @id @default(uuid())
+  tenantId String
+  userId String
+  type String
+  status String @default("Queued")
+  filters Json @default("{}")
+  rows Int @default(0)
+  bytes Bytes?
+  mime String @default("text/csv")
+  error String?
+  downloadedAt DateTime?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  completedAt DateTime?
+  @@index([tenantId,userId])
+}
+
+model IdempotencyKey {
+  id String @id
+  userId String
+  action String
+  status Int
+  body Json
+  createdAt DateTime @default(now())
+}
+
+/// A CSV or XLSX of people: previewed first, then applied row by row (FR-03).
+model ImportJob {
+  id String @id @default(uuid())
+  tenantId String
+  userId String
+  filename String
+  status String @default("Previewed")
+  rows Json @default("[]")
+  totalRows Int @default(0)
+  createdRows Int @default(0)
+  skippedRows Int @default(0)
+  errorRows Int @default(0)
+  appliedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([tenantId])
+}
+
+// ── Subscription billing ────────────────────────────────────────────
+// Money is stored in the currency's minor unit (halalas) as an integer,
+// never a float, so totals never drift.
+
+model Plan {
+  id           String         @id @default(uuid())
+  code         String         @unique
+  nameAr       String
+  nameEn       String
+  descriptionAr String        @default("")
+  descriptionEn String        @default("")
+  priceMonthly Int
+  currency     String         @default("SAR")
+  maxCourses   Int
+  maxMembers   Int
+  storageMb    Int
+  features     String[]       @default([])
+  active       Boolean        @default(true)
+  sortOrder    Int            @default(0)
+  createdAt    DateTime       @default(now())
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                 String    @id @default(uuid())
+  tenantId           String    @unique
+  planId             String
+  status             String    @default("Trialing")
+  trialEndsAt        DateTime?
+  currentPeriodStart DateTime  @default(now())
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean   @default(false)
+  provider           String    @default("manual")
+  providerRef        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  version            Int       @default(1)
+  tenant             Tenant    @relation(fields: [tenantId], references: [id])
+  plan               Plan      @relation(fields: [planId], references: [id])
+  invoices           Invoice[]
+  @@index([status, currentPeriodEnd])
+}
+
+model Invoice {
+  id             String       @id @default(uuid())
+  tenantId       String
+  subscriptionId String
+  number         String       @unique
+  amount         Int
+  netAmount      Int          @default(0)
+  vatAmount      Int          @default(0)
+  currency       String       @default("SAR")
+  status         String       @default("Open")
+  periodStart    DateTime
+  periodEnd      DateTime
+  issuedAt       DateTime     @default(now())
+  dueAt          DateTime
+  paidAt         DateTime?
+  provider       String       @default("manual")
+  providerRef    String?
+  note           String?
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  @@index([tenantId, issuedAt])
+}
+
+// Guards against a webhook or retry applying the same payment twice.
+model BillingEvent {
+  id          String   @id @default(uuid())
+  provider    String
+  externalId  String
+  type        String
+  payload     Json     @default("{}")
+  processedAt DateTime @default(now())
+  @@unique([provider, externalId])
+}
+
+/// Any signed message received from an outside provider. The unique pair is the
+/// replay guard: the same delivery twice changes nothing the second time.
+model InboundEvent {
+  id String @id @default(uuid())
+  provider String
+  externalId String
+  type String
+  tenantId String?
+  payload Json
+  status String @default("Processed")
+  error String?
+  receivedAt DateTime @default(now())
+  @@unique([provider,externalId])
+  @@index([provider,receivedAt])
+}
+
+/// A message from the public contact form. Kept apart from every tenant table:
+/// a visitor is not a member of any workspace, and this row must never be
+/// reachable through a tenant scoped query.
+model ContactLead {
+  id String @id @default(uuid())
+  name String
+  email String
+  organization String
+  phone String?
+  topic String
+  message String
+  locale String @default("ar")
+  source String @default("website")
+  status String @default("New")
+  handledBy String?
+  handledAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([status,createdAt])
+}
+
+/// One backup of the whole database: requested from the operator panel or by
+/// the scheduler, produced by scripts/backup.ts, optionally copied off site.
+model BackupRun {
+  id          String    @id @default(uuid())
+  status      String    @default("Requested")
+  trigger     String    @default("schedule")
+  requestedBy String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  file        String?
+  bytes       Int?
+  tables      Int?
+  rows        Int?
+  checksum    String?
+  remote      String?
+  error       String?
+  createdAt   DateTime  @default(now())
+  @@index([status, createdAt])
+}
+
+/// Server, worker and browser failures grouped by fingerprint, so the operator
+/// sees one row with a count instead of a thousand identical lines.
+model ErrorEvent {
+  id          String    @id @default(uuid())
+  fingerprint String    @unique
+  source      String
+  name        String
+  message     String
+  stack       String    @default("")
+  path        String    @default("")
+  count       Int       @default(1)
+  context     Json      @default("{}")
+  firstSeenAt DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  resolvedAt  DateTime?
+  @@index([resolvedAt, lastSeenAt])
+}

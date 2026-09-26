@@ -1,0 +1,291 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Mada palette. "navy" is the ink, "copper" the accent; the accent is
+     overridden per organization inside the app shell (see brandStyle). ── */
+  --color-navy-950: #0f2229;
+  --color-navy-900: #16323b;
+  --color-navy-800: #1f3f49;
+  --color-navy-700: #2a4d58;
+  --color-navy-600: #4d6770;
+  --color-navy-400: #86979d;
+  --color-navy-300: #b5c1c5;
+  --color-navy-200: #d4dcdf;
+  --color-navy-100: #e7eced;
+
+  --color-copper-700: #0a5b56;
+  --color-copper-600: #0e7c74;
+  --color-copper-500: #19a095;
+  --color-copper-200: #bfe5e1;
+  --color-copper-100: #e3f4f2;
+
+  --color-ivory-500: #ece8dc;
+  --color-ivory-300: #f3f1ea;
+  --color-ivory-100: #f9f8f4;
+
+  --color-positive: #2f7d5d;
+  --color-positive-soft: #e3f1ea;
+  --color-caution: #b4801d;
+  --color-caution-soft: #fbf0d9;
+  --color-critical: #b3392f;
+  --color-critical-soft: #fbe8e6;
+  --color-info: #2a5c8a;
+  --color-info-soft: #e6eef6;
+
+  --font-sans: var(--font-plex), 'Segoe UI', Tahoma, Arial, sans-serif;
+  --font-arabic: var(--font-plex), 'Segoe UI', Tahoma, Arial, sans-serif;
+
+  --radius-card: 14px;
+
+  --shadow-subtle: 0 1px 2px rgb(40 53 67 / 0.06), 0 1px 3px rgb(40 53 67 / 0.04);
+  --shadow-raised: 0 2px 4px rgb(40 53 67 / 0.04), 0 8px 24px -8px rgb(40 53 67 / 0.14);
+  --shadow-overlay: 0 24px 60px -12px rgb(27 36 46 / 0.32);
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  :root {
+    --surface-page: var(--color-ivory-100);
+    --surface-card: #ffffff;
+    --surface-sunken: var(--color-ivory-300);
+    --surface-inverse: var(--color-navy-900);
+    --line-soft: rgb(40 53 67 / 0.09);
+    --line-strong: rgb(40 53 67 / 0.16);
+    --text-strong: var(--color-navy-900);
+    --text-muted: var(--color-navy-600);
+    --text-faint: var(--color-navy-400);
+    --focus-ring: var(--color-copper-600);
+    color-scheme: light;
+
+    /* Chart marks. Magnitude is always the single copper hue; the diverging
+       pair is only ever used with an arrow glyph and a signed label beside
+       it, because positive↔critical cannot clear ΔE 8 under deuteranopia. */
+    --mark-magnitude: var(--color-copper-600);
+    --mark-track: var(--color-ivory-500);
+    --mark-up: #2f7d5d;
+    --mark-down: #b3392f;
+    --mark-flat: var(--color-navy-300);
+  }
+
+  /* ── Dark palette ────────────────────────────────────────────────
+     Declared twice on purpose, and the two copies must stay identical:
+
+       1. `[data-theme="dark"]`  — an explicit choice, stamped on <html> by
+          the server from the mada.theme cookie.
+       2. the media query below — a first-time visitor who has never chosen,
+          so their system preference decides. `:not([data-theme="light"])`
+          keeps an explicit light choice winning over a dark system.
+
+     Both are plain CSS, so the correct palette is in the very first paint.
+     There is deliberately no theme script: an inline script cannot beat the
+     first paint once Next queues it, and React warns about script elements
+     rendered inside components.
+
+     The steps are re-stepped against the dark surface, never an automatic
+     flip of the light values: #b3392f only reaches 2.94:1 on #1d2833. */
+
+  :root[data-theme="dark"] {
+    --surface-page: #141c24;
+    --surface-card: #1d2833;
+    --surface-sunken: #18212a;
+    --surface-inverse: #101820;
+    --line-soft: rgb(233 238 244 / 0.10);
+    --line-strong: rgb(233 238 244 / 0.20);
+    --text-strong: #eef1f5;
+    --text-muted: #a7b2bf;
+    --text-faint: #7d8894;
+    --focus-ring: var(--color-copper-500);
+    color-scheme: dark;
+
+    --color-positive: #4fa87f;
+    --color-positive-soft: #1c3a2e;
+    --color-caution: #d6a33c;
+    --color-caution-soft: #3a2f16;
+    --color-critical: #e06a5e;
+    --color-critical-soft: #3d211e;
+    --color-info: #6fa6d8;
+    --color-info-soft: #1b2c3d;
+    --color-copper-100: #16302d;
+    --color-copper-700: #3cc2b5;
+    --color-navy-100: #2a3743;
+    --color-navy-700: #c3ccd6;
+
+    --mark-magnitude: #19a095;
+    --mark-track: #253039;
+    --mark-up: #4fa87f;
+    --mark-down: #e06a5e;
+    --mark-flat: var(--color-navy-600);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --surface-page: #141c24;
+      --surface-card: #1d2833;
+      --surface-sunken: #18212a;
+      --surface-inverse: #101820;
+      --line-soft: rgb(233 238 244 / 0.10);
+      --line-strong: rgb(233 238 244 / 0.20);
+      --text-strong: #eef1f5;
+      --text-muted: #a7b2bf;
+      --text-faint: #7d8894;
+      --focus-ring: var(--color-copper-500);
+      color-scheme: dark;
+
+      --color-positive: #4fa87f;
+      --color-positive-soft: #1c3a2e;
+      --color-caution: #d6a33c;
+      --color-caution-soft: #3a2f16;
+      --color-critical: #e06a5e;
+      --color-critical-soft: #3d211e;
+      --color-info: #6fa6d8;
+      --color-info-soft: #1b2c3d;
+      --color-copper-100: #16302d;
+      --color-copper-700: #3cc2b5;
+      --color-navy-100: #2a3743;
+      --color-navy-700: #c3ccd6;
+
+      --mark-magnitude: #19a095;
+      --mark-track: #253039;
+      --mark-up: #4fa87f;
+      --mark-down: #e06a5e;
+      --mark-flat: var(--color-navy-600);
+    }
+  }
+
+  * { border-color: var(--line-soft); }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    background: var(--surface-page);
+    color: var(--text-strong);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  html[lang="ar"] body { font-family: var(--font-arabic); }
+  h1, h2, h3, h4, h5, h6 { font-family: var(--font-sans); font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+  html[lang="ar"] h1, html[lang="ar"] h2, html[lang="ar"] h3, html[lang="ar"] h4 { letter-spacing: 0; }
+
+  /* Arabic numerals stay Western for data legibility in dashboards */
+  html[lang="ar"] { font-feature-settings: "ss01"; }
+
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection { background: var(--color-copper-200); color: var(--color-navy-900); }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: 99px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-navy-400); background-clip: content-box; }
+}
+
+@layer components {
+  .surface {
+    background: var(--surface-card);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius-card);
+  }
+
+  .field-input {
+    width: 100%;
+    background: var(--surface-card);
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    padding: 0.575rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-strong);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .field-input::placeholder { color: var(--text-faint); }
+  .field-input:hover:not(:disabled) { border-color: var(--color-navy-400); }
+  .field-input:focus {
+    outline: none;
+    border-color: var(--color-copper-600);
+    box-shadow: 0 0 0 3px rgb(193 99 37 / 0.14);
+  }
+  .field-input:disabled { background: var(--surface-sunken); color: var(--text-faint); cursor: not-allowed; }
+  select.field-input { appearance: none; padding-inline-end: 2rem; }
+
+  .skeleton {
+    background: linear-gradient(90deg, var(--surface-sunken) 25%, var(--line-soft) 37%, var(--surface-sunken) 63%);
+    background-size: 400% 100%;
+    animation: shimmer 1.4s ease infinite;
+    border-radius: 8px;
+  }
+}
+
+@keyframes shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.animate-rise { animation: rise 0.34s var(--ease-out-soft) both; }
+
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.animate-fade { animation: fade 0.2s ease both; }
+
+@keyframes pop {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.animate-pop { animation: pop 0.24s var(--ease-out-soft) both; }
+
+/* Public site hero */
+.site-hero { background:#0f2229; color:#ece8dc; }
+
+/* An organization's own colour, set on the app shell by brandStyle(). */
+.brand-scope {
+  --color-copper-600: var(--brand-base);
+  --color-copper-700: color-mix(in srgb, var(--brand-base) 82%, black);
+  --color-copper-500: color-mix(in srgb, var(--brand) 78%, white);
+  --color-copper-200: color-mix(in srgb, var(--brand) 28%, white);
+  --color-copper-100: color-mix(in srgb, var(--brand) 12%, white);
+  --focus-ring: var(--brand-base);
+  --mark-magnitude: var(--brand-base);
+}
+:root[data-theme="dark"] .brand-scope {
+  --color-copper-700: color-mix(in srgb, var(--brand) 55%, white);
+  --color-copper-500: color-mix(in srgb, var(--brand) 70%, white);
+  --color-copper-200: color-mix(in srgb, var(--brand) 35%, #1d2833);
+  --color-copper-100: color-mix(in srgb, var(--brand) 18%, #1d2833);
+  --focus-ring: var(--color-copper-500);
+  --mark-magnitude: var(--color-copper-500);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .brand-scope {
+    --color-copper-700: color-mix(in srgb, var(--brand) 55%, white);
+    --color-copper-500: color-mix(in srgb, var(--brand) 70%, white);
+    --color-copper-200: color-mix(in srgb, var(--brand) 35%, #1d2833);
+    --color-copper-100: color-mix(in srgb, var(--brand) 18%, #1d2833);
+    --focus-ring: var(--color-copper-500);
+    --mark-magnitude: var(--color-copper-500);
+  }
+}
+
+/* Lesson text keeps the author's paragraphs and line breaks. */
+.lesson-prose { white-space: pre-wrap; line-height: 1.95; font-size: 15.5px; }
+
+@media print {
+  .no-print { display: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
