@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
-  AlertTriangle, ArrowDown, ArrowUp, BookOpen, CheckCircle2, Circle, CopyPlus, FileText, Film, Link2, Lock, Pencil, Plus, Send, Trash2, UserPlus, Type,
+  AlertTriangle, ArrowDown, ArrowUp, BookOpen, CheckCircle2, Circle, CopyPlus, FileText, Film, Link2, ListChecks, Lock, Pencil, Plus, Send, Trash2, UserPlus, Type,
 } from 'lucide-react';
 import { useApp } from '@/components/app-provider';
 import {
@@ -29,7 +29,7 @@ export type EditorData = {
 export type AssignData = { members: { id: string; name: string; email: string; role: string }[]; groups: { id: string; name: string; count: number }[] };
 
 type Tab = 'content' | 'quiz' | 'settings' | 'learners' | 'versions';
-const kindIcon = { Text: Type, Pdf: FileText, Video: Film, Link: Link2 } as const;
+const kindIcon = { Text: Type, Pdf: FileText, Video: Film, Link: Link2, Quiz: ListChecks } as const;
 
 /* ───────────────────────── Lesson editor ───────────────────────── */
 
@@ -42,14 +42,18 @@ function LessonModal({
   const [form, setForm] = useState(() => ({
     title: lesson?.title ?? '', kind: (lesson?.kind ?? 'Text') as LessonState['kind'], body: lesson?.body ?? '', url: lesson?.url ?? '',
     assetId: lesson?.assetId ?? null as string | null, durationSeconds: lesson?.durationSeconds ?? 0, required: lesson?.required ?? true,
+    graded: lesson?.graded ?? true, passPercent: lesson?.passPercent ?? 70, maxAttempts: lesson?.maxAttempts ?? 3, timeLimitMinutes: lesson?.timeLimitMinutes ?? ('' as number | ''),
   }));
   const [picked, setPicked] = useState<AssetState | null>(lesson?.assetId ? assets[lesson.assetId] ?? null : null);
-  const fileKind = form.kind === 'Pdf' ? 'application/pdf' : form.kind === 'Video' ? 'video/mp4' : null;
-  const choices = library.filter((a) => a.mime === fileKind);
-  const valid = form.title.trim() && (form.kind === 'Text' ? form.body.trim() : form.kind === 'Link' ? /^https:\/\/\S+$/.test(form.url) : !!form.assetId);
+  const fileKind = form.kind === 'Pdf' ? 'pdf' : form.kind === 'Video' ? 'video' : null;
+  const choices = library.filter((a) => (fileKind === 'pdf' ? a.mime === 'application/pdf' : fileKind === 'video' ? a.mime.startsWith('video/') : false));
+  const valid = form.title.trim() && (form.kind === 'Text' ? form.body.trim() : form.kind === 'Link' ? /^https:\/\/\S+$/.test(form.url) : form.kind === 'Quiz' ? form.passPercent >= 1 && form.passPercent <= 100 && form.maxAttempts >= 1 : !!form.assetId);
 
   async function save() {
-    const r = await run('lesson.save', { versionId, moduleId, ...(lesson ? { id: lesson.id } : {}), ...form, url: form.kind === 'Link' ? form.url : null, assetId: fileKind ? form.assetId : null });
+    const r = await run('lesson.save', {
+      versionId, moduleId, ...(lesson ? { id: lesson.id } : {}), ...form,
+      url: form.kind === 'Link' ? form.url : null, assetId: fileKind ? form.assetId : null, timeLimitMinutes: form.timeLimitMinutes || null,
+    });
     if (r) onClose();
   }
 
@@ -67,12 +71,12 @@ function LessonModal({
         </Field>
         <div>
           <p className="mb-1.5 text-[13px] font-medium">{t.course.lessonKind}</p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {(['Text', 'Pdf', 'Video', 'Link'] as const).map((k) => {
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            {(['Video', 'Text', 'Pdf', 'Quiz', 'Link'] as const).map((k) => {
               const Icon = kindIcon[k];
               return (
-                <button key={k} type="button" onClick={() => { setForm({ ...form, kind: k, assetId: null }); setPicked(null); }}
-                  className={cx('flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-[13px] font-medium transition-colors', form.kind === k ? 'border-copper-600 bg-copper-100 text-copper-700' : 'border-[var(--line-strong)] hover:bg-[var(--surface-sunken)]')}>
+                <button key={k} type="button" disabled={!!lesson && lesson.kind !== k && (lesson.kind === 'Quiz' || k === 'Quiz')} onClick={() => { setForm({ ...form, kind: k, assetId: null }); setPicked(null); }}
+                  className={cx('flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-[13px] font-medium transition-colors disabled:opacity-40', form.kind === k ? 'border-copper-600 bg-copper-100 text-copper-700' : 'border-[var(--line-strong)] hover:bg-[var(--surface-sunken)]')}>
                   <Icon size={15} />{t.course.kinds[k]}
                 </button>
               );
@@ -92,13 +96,36 @@ function LessonModal({
           </Field>
         ) : null}
 
+        {form.kind === 'Quiz' ? (
+          <div className="space-y-4 rounded-xl border border-[var(--line-soft)] p-4">
+            <p className="text-[13px] font-semibold">{t.course.quizLesson}</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {([true, false] as const).map((g) => (
+                <label key={String(g)} className={cx('cursor-pointer rounded-xl border px-3.5 py-3 text-[13px]', form.graded === g ? 'border-copper-600 bg-copper-100' : 'border-[var(--line-strong)]')}>
+                  <span className="flex items-center gap-2 font-medium"><input type="radio" name="graded" checked={form.graded === g} onChange={() => setForm({ ...form, graded: g })} className="accent-[var(--color-copper-600)]" />{g ? t.course.graded : t.course.practice}</span>
+                  <span className="mt-1 block text-[12px] leading-snug text-[var(--text-muted)]">{g ? t.course.gradedHint : t.course.practiceHint}</span>
+                </label>
+              ))}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label={t.course.passPercent}><Input type="number" min={1} max={100} dir="ltr" disabled={!form.graded} value={form.passPercent} onChange={(e) => setForm({ ...form, passPercent: Number(e.target.value) })} /></Field>
+              <Field label={t.course.maxAttempts}><Input type="number" min={1} max={20} dir="ltr" value={form.maxAttempts} onChange={(e) => setForm({ ...form, maxAttempts: Number(e.target.value) })} /></Field>
+              <Field label={t.course.timeLimit} hint={t.course.timeLimitHint}><Input type="number" min={1} max={600} dir="ltr" value={form.timeLimitMinutes} onChange={(e) => setForm({ ...form, timeLimitMinutes: e.target.value ? Number(e.target.value) : '' })} /></Field>
+            </div>
+            <Field label={t.course.description} hint={t.common.optional}>
+              <Textarea rows={2} value={form.body} maxLength={4000} onChange={(e) => setForm({ ...form, body: e.target.value })} />
+            </Field>
+            {!lesson ? <p className="text-[12px] text-[var(--text-faint)]">{t.course.noQuestionsYet}</p> : null}
+          </div>
+        ) : null}
+
         {fileKind ? (
           <div className="space-y-3">
             <p className="text-[13px] font-medium">{t.course.file} <span className="text-copper-600">*</span></p>
             {picked ? <AssetChip asset={picked} onClear={() => { setPicked(null); setForm({ ...form, assetId: null }); }} /> : null}
             <div className="flex flex-wrap items-center gap-3">
               <UploadButton
-                accept={form.kind === 'Pdf' ? 'application/pdf,.pdf' : 'video/mp4,.mp4'}
+                accept={form.kind === 'Pdf' ? 'application/pdf,.pdf' : 'video/mp4,video/webm,.mp4,.webm'}
                 label={t.course.pickFile}
                 onUploaded={async (asset, file) => {
                   const duration = form.kind === 'Video' ? await videoDuration(file) : 0;
@@ -113,7 +140,7 @@ function LessonModal({
                 </Select>
               ) : null}
             </div>
-            <p className="text-[12px] text-[var(--text-faint)]">{t.files.limits}</p>
+            <p className="text-[12px] text-[var(--text-faint)]">{form.kind === 'Video' ? t.course.videoHint : t.files.limits}</p>
             {form.kind === 'Video' ? (
               <Field label={t.course.duration} hint={t.course.durationHint} required>
                 <Input type="number" min={1} dir="ltr" className="max-w-40" value={form.durationSeconds || ''} onChange={(e) => setForm({ ...form, durationSeconds: Number(e.target.value) })} />
@@ -122,7 +149,9 @@ function LessonModal({
           </div>
         ) : null}
 
-        <Checkbox label={<><span className="font-medium">{t.course.requiredLesson}</span><span className="block text-[12px] text-[var(--text-faint)]">{t.course.requiredHint}</span></>} checked={form.required} onChange={(e) => setForm({ ...form, required: e.target.checked })} />
+        {form.kind !== 'Quiz' || form.graded ? (
+          <Checkbox label={<><span className="font-medium">{t.course.requiredLesson}</span><span className="block text-[12px] text-[var(--text-faint)]">{t.course.requiredHint}</span></>} checked={form.required} onChange={(e) => setForm({ ...form, required: e.target.checked })} />
+        ) : null}
       </div>
     </Modal>
   );
@@ -130,19 +159,36 @@ function LessonModal({
 
 /* ───────────────────────── Question editor ───────────────────────── */
 
-function QuestionModal({ open, onClose, versionId, question }: { open: boolean; onClose: () => void; versionId: string; question: QuestionState | null }) {
+const LETTERS = 'abcdefgh'.split('');
+
+function QuestionModal({ open, onClose, versionId, lessonId, question }: { open: boolean; onClose: () => void; versionId: string; lessonId: string | null; question: QuestionState | null }) {
   const { t, run, busy } = useApp();
   const [kind, setKind] = useState<QuestionState['kind']>(question?.kind ?? 'Single');
   const [prompt, setPrompt] = useState(question?.prompt ?? '');
   const [points, setPoints] = useState(question?.points ?? 1);
-  const [choices, setChoices] = useState(() => (question && question.kind === 'Single' ? question.choices : [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }]));
-  const [correct, setCorrect] = useState(question?.correct ?? (kind === 'TrueFalse' ? 'true' : 'a'));
-  const nextId = () => { const used = new Set(choices.map((c) => c.id)); return 'abcdefgh'.split('').find((c) => !used.has(c)) ?? String(Date.now()); };
-  const filled = kind === 'TrueFalse' ? [] : choices.filter((c) => c.text.trim());
-  const valid = prompt.trim() && points >= 1 && (kind === 'TrueFalse' ? ['true', 'false'].includes(correct) : filled.length >= 2 && filled.some((c) => c.id === correct));
+  const [guide, setGuide] = useState(question?.guide ?? '');
+  const [choices, setChoices] = useState(() => (question && (question.kind === 'Single' || question.kind === 'Multiple') ? question.choices : [{ id: 'a', text: '' }, { id: 'b', text: '' }, { id: 'c', text: '' }]));
+  // Single and TrueFalse keep one id; Multiple keeps several.
+  const [correct, setCorrect] = useState<string[]>(() => (question?.correct ? question.correct.split(',') : [kind === 'TrueFalse' ? 'true' : 'a']));
+  const nextId = () => LETTERS.find((c) => !choices.some((x) => x.id === c)) ?? String(Date.now());
+  const filled = choices.filter((c) => c.text.trim());
+  const valid = prompt.trim() && points >= 1 && (
+    kind === 'Text' ? true
+    : kind === 'TrueFalse' ? ['true', 'false'].includes(correct[0])
+    : filled.length >= 2 && correct.length >= 1 && correct.every((id) => filled.some((c) => c.id === id)) && (kind === 'Multiple' || correct.length === 1)
+  );
+
+  function changeKind(k: QuestionState['kind']) {
+    setKind(k);
+    setCorrect(k === 'TrueFalse' ? ['true'] : k === 'Text' ? [] : [choices[0]?.id ?? 'a']);
+  }
 
   async function save() {
-    const r = await run('question.save', { versionId, ...(question ? { id: question.id } : {}), kind, prompt, points, choices: kind === 'TrueFalse' ? [] : filled, correct });
+    const r = await run('question.save', {
+      versionId, lessonId, ...(question ? { id: question.id } : {}), kind, prompt, points, guide,
+      choices: kind === 'Single' || kind === 'Multiple' ? filled : [],
+      correct: kind === 'Multiple' ? correct : kind === 'Text' ? '' : correct[0],
+    });
     if (r) onClose();
   }
 
@@ -150,48 +196,127 @@ function QuestionModal({ open, onClose, versionId, question }: { open: boolean; 
     <Modal open={open} onClose={onClose} size="lg" title={question ? t.course.questions : t.course.addQuestion}
       footer={<><Button variant="ghost" onClick={onClose}>{t.common.cancel}</Button><Button loading={busy} disabled={!valid} onClick={save}>{t.common.save}</Button></>}>
       <div className="space-y-4">
+        <div>
+          <p className="mb-1.5 text-[13px] font-medium">{t.course.questionKind}</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {(['Single', 'Multiple', 'TrueFalse', 'Text'] as const).map((k) => (
+              <button key={k} type="button" onClick={() => changeKind(k)}
+                className={cx('rounded-xl border px-3 py-2.5 text-start text-[12.5px] font-medium transition-colors', kind === k ? 'border-copper-600 bg-copper-100 text-copper-700' : 'border-[var(--line-strong)] hover:bg-[var(--surface-sunken)]')}>
+                {t.course.questionKinds[k]}
+                <span className="mt-0.5 block text-[11px] font-normal text-[var(--text-faint)]">{k === 'Text' ? t.course.manualGraded : t.course.autoGraded}</span>
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="grid gap-4 sm:grid-cols-[1fr_8rem]">
-          <Field label={t.course.questionKind}>
-            <Select value={kind} onChange={(e) => { const k = e.target.value as QuestionState['kind']; setKind(k); setCorrect(k === 'TrueFalse' ? 'true' : choices[0]?.id ?? 'a'); }}>
-              <option value="Single">{t.course.questionKinds.Single}</option>
-              <option value="TrueFalse">{t.course.questionKinds.TrueFalse}</option>
-            </Select>
+          <Field label={t.course.prompt} required>
+            <Textarea rows={3} value={prompt} maxLength={2000} onChange={(e) => setPrompt(e.target.value)} />
           </Field>
           <Field label={t.course.points}>
             <Input type="number" min={1} max={100} dir="ltr" value={points} onChange={(e) => setPoints(Number(e.target.value))} />
           </Field>
         </div>
-        <Field label={t.course.prompt} required>
-          <Textarea rows={3} value={prompt} maxLength={2000} onChange={(e) => setPrompt(e.target.value)} />
-        </Field>
-        <fieldset>
-          <legend className="mb-2 text-[13px] font-medium">{t.course.choices} <span className="font-normal text-[var(--text-faint)]">· {t.course.markCorrect}</span></legend>
-          {kind === 'TrueFalse' ? (
+
+        {kind === 'Text' ? (
+          <>
+            <p className="rounded-lg bg-info-soft px-3 py-2 text-[12.5px] text-info">{t.course.manualHint}</p>
+            <Field label={t.course.guide} hint={t.course.guideHint}>
+              <Textarea rows={3} value={guide} maxLength={4000} onChange={(e) => setGuide(e.target.value)} />
+            </Field>
+          </>
+        ) : kind === 'TrueFalse' ? (
+          <fieldset>
+            <legend className="mb-2 text-[13px] font-medium">{t.course.markCorrect}</legend>
             <div className="flex gap-3">
               {(['true', 'false'] as const).map((v) => (
-                <label key={v} className={cx('flex flex-1 cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.5 text-[13.5px]', correct === v ? 'border-positive bg-positive-soft' : 'border-[var(--line-strong)]')}>
-                  <input type="radio" name="correct" checked={correct === v} onChange={() => setCorrect(v)} className="accent-[var(--color-positive)]" />
+                <label key={v} className={cx('flex flex-1 cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.5 text-[13.5px]', correct[0] === v ? 'border-positive bg-positive-soft' : 'border-[var(--line-strong)]')}>
+                  <input type="radio" name="correct" checked={correct[0] === v} onChange={() => setCorrect([v])} className="accent-[var(--color-positive)]" />
                   {v === 'true' ? t.quiz.true : t.quiz.false}
                 </label>
               ))}
             </div>
-          ) : (
+          </fieldset>
+        ) : (
+          <fieldset>
+            <legend className="mb-2 text-[13px] font-medium">{t.course.choices} <span className="font-normal text-[var(--text-faint)]">· {t.course.markCorrect}</span></legend>
+            {kind === 'Multiple' ? <p className="mb-2 text-[12px] text-[var(--text-faint)]">{t.course.multipleHint}</p> : null}
             <div className="space-y-2">
-              {choices.map((c, i) => (
-                <div key={c.id} className={cx('flex items-center gap-2.5 rounded-xl border px-3 py-1.5', correct === c.id ? 'border-positive bg-positive-soft' : 'border-[var(--line-strong)]')}>
-                  <input type="radio" name="correct" aria-label={t.course.markCorrect} checked={correct === c.id} onChange={() => setCorrect(c.id)} className="accent-[var(--color-positive)]" />
-                  <input className="min-w-0 flex-1 bg-transparent py-1 text-[13.5px] outline-none" value={c.text} maxLength={500} placeholder={`${t.course.choices} ${i + 1}`} onChange={(e) => setChoices(choices.map((x) => (x.id === c.id ? { ...x, text: e.target.value } : x)))} />
-                  {choices.length > 2 ? (
-                    <button type="button" onClick={() => { setChoices(choices.filter((x) => x.id !== c.id)); if (correct === c.id) setCorrect(choices.find((x) => x.id !== c.id)!.id); }} className="rounded p-1 text-[var(--text-faint)] hover:text-critical" aria-label={t.common.remove}><Trash2 size={14} /></button>
-                  ) : null}
-                </div>
-              ))}
+              {choices.map((c, i) => {
+                const on = correct.includes(c.id);
+                return (
+                  <div key={c.id} className={cx('flex items-center gap-2.5 rounded-xl border px-3 py-1.5', on ? 'border-positive bg-positive-soft' : 'border-[var(--line-strong)]')}>
+                    <input type={kind === 'Multiple' ? 'checkbox' : 'radio'} name="correct" aria-label={t.course.markCorrect} checked={on}
+                      onChange={(e) => setCorrect(kind === 'Multiple' ? (e.target.checked ? [...correct, c.id] : correct.filter((x) => x !== c.id)) : [c.id])} className="size-4 accent-[var(--color-positive)]" />
+                    <input className="min-w-0 flex-1 bg-transparent py-1 text-[13.5px] outline-none" value={c.text} maxLength={500} placeholder={`${t.course.choices} ${i + 1}`} onChange={(e) => setChoices(choices.map((x) => (x.id === c.id ? { ...x, text: e.target.value } : x)))} />
+                    {choices.length > 2 ? (
+                      <button type="button" onClick={() => { setChoices(choices.filter((x) => x.id !== c.id)); setCorrect(correct.filter((x) => x !== c.id)); }} className="rounded p-1 text-[var(--text-faint)] hover:text-critical" aria-label={t.common.remove}><Trash2 size={14} /></button>
+                    ) : null}
+                  </div>
+                );
+              })}
               {choices.length < 8 ? <Button type="button" size="sm" variant="subtle" icon={<Plus size={14} />} onClick={() => setChoices([...choices, { id: nextId(), text: '' }])}>{t.course.addChoice}</Button> : null}
             </div>
-          )}
-        </fieldset>
+          </fieldset>
+        )}
       </div>
     </Modal>
+  );
+}
+
+/** The questions of one quiz, in order: a quiz lesson, or the final exam when lessonId is null. */
+function QuestionList({ versionId, lessonId, questions, editable }: { versionId: string; lessonId: string | null; questions: QuestionState[]; editable: boolean }) {
+  const { t, locale, run } = useApp();
+  const [target, setTarget] = useState<{ question: QuestionState | null } | null>(null);
+  const total = questions.reduce((s, q) => s + q.points, 0);
+  function move(i: number, d: -1 | 1) {
+    const ids = questions.map((q) => q.id); const j = i + d; if (j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]]; void run('question.reorder', { versionId, lessonId, ids });
+  }
+  const keyOf = (q: QuestionState) => q.correct.split(',');
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[12.5px] text-[var(--text-muted)]">{formatNumber(questions.length, locale)} {t.course.questionCount} · {t.course.totalPoints}: {formatNumber(total, locale)}</p>
+        {editable ? <Button size="sm" icon={<Plus size={14} />} onClick={() => setTarget({ question: null })}>{t.course.addQuestion}</Button> : null}
+      </div>
+      {questions.length === 0 ? (
+        <EmptyState title={t.course.noQuestions} hint={t.course.noQuestionsYet} icon={<CheckCircle2 size={19} />} />
+      ) : (
+        <ol className="mt-3 divide-y divide-[var(--line-soft)] rounded-xl border border-[var(--line-soft)]">
+          {questions.map((q, i) => (
+            <li key={q.id} className="flex gap-3 px-4 py-3.5">
+              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-[var(--surface-sunken)] text-[12px] font-semibold tabular-nums">{i + 1}</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13.5px] font-medium leading-relaxed">{q.prompt}</p>
+                {q.kind === 'Text' ? (
+                  q.guide ? <p className="mt-1.5 rounded-lg bg-[var(--surface-sunken)] px-2.5 py-1.5 text-[12px] text-[var(--text-muted)]"><span className="font-medium">{t.course.guide}: </span>{q.guide}</p> : null
+                ) : (
+                  <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                    {(q.kind === 'TrueFalse' ? [{ id: 'true', text: t.quiz.true }, { id: 'false', text: t.quiz.false }] : q.choices).map((c) => {
+                      const on = keyOf(q).includes(c.id);
+                      return <li key={c.id}><Badge tone={on ? 'positive' : 'neutral'}>{on ? <CheckCircle2 size={11} /> : null}{c.text}</Badge></li>;
+                    })}
+                  </ul>
+                )}
+                <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11.5px] text-[var(--text-faint)]">
+                  {t.course.questionKinds[q.kind]} · {formatNumber(q.points, locale)} {t.quiz.points}
+                  <Badge tone={q.kind === 'Text' ? 'caution' : 'info'}>{q.kind === 'Text' ? t.course.manualGraded : t.course.autoGraded}</Badge>
+                </p>
+              </div>
+              {editable ? (
+                <span className="flex shrink-0 items-start gap-1">
+                  <Button size="sm" variant="subtle" aria-label={t.common.moveUp} disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp size={14} /></Button>
+                  <Button size="sm" variant="subtle" aria-label={t.common.moveDown} disabled={i === questions.length - 1} onClick={() => move(i, 1)}><ArrowDown size={14} /></Button>
+                  <Button size="sm" variant="subtle" aria-label={t.common.edit} onClick={() => setTarget({ question: q })}><Pencil size={14} /></Button>
+                  <Button size="sm" variant="subtle" aria-label={t.course.deleteQuestion} onClick={() => { if (confirm(t.course.deleteQuestion)) void run('question.delete', { versionId, id: q.id }); }}><Trash2 size={14} /></Button>
+                </span>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      )}
+      {target ? <QuestionModal key={target.question?.id ?? 'new'} open onClose={() => setTarget(null)} versionId={versionId} lessonId={lessonId} question={target.question} /> : null}
+    </>
   );
 }
 
@@ -270,6 +395,8 @@ function ContentTab({ data, editable }: { data: EditorData; editable: boolean })
   const { t, locale, run } = useApp();
   const v = data.version;
   const [lessonTarget, setLessonTarget] = useState<{ moduleId: string; lesson: LessonState | null } | null>(null);
+  const [quizLesson, setQuizLesson] = useState<LessonState | null>(null);
+  const questionsOf = (lessonId: string) => v.questions.filter((q) => q.lessonId === lessonId);
   const [renaming, setRenaming] = useState<ModuleState | null>(null);
   const [moduleName, setModuleName] = useState('');
   const [addingModule, setAddingModule] = useState(false);
@@ -321,8 +448,12 @@ function ContentTab({ data, editable }: { data: EditorData; editable: boolean })
                         {t.course.kinds[l.kind]}
                         {l.kind === 'Video' && l.durationSeconds ? <span className="tabular-nums">{Math.floor(l.durationSeconds / 60)}:{String(l.durationSeconds % 60).padStart(2, '0')}</span> : null}
                         {asset && asset.status !== 'Clean' ? <Badge tone={asset.status === 'Rejected' ? 'critical' : 'caution'}>{asset.status === 'Rejected' ? t.course.scanRejected : t.course.scanPending}</Badge> : null}
+                        {l.kind === 'Quiz' ? <span>{formatNumber(questionsOf(l.id).length, locale)} {t.course.questionCount}{l.graded ? ` · ${t.quiz.passMark} ${l.passPercent}%` : ''}</span> : null}
+                        {l.kind === 'Quiz' && questionsOf(l.id).length === 0 ? <Badge tone="caution">{t.course.noQuestionsYet}</Badge> : null}
                       </span>
                     </span>
+                    {l.kind === 'Quiz' ? <Badge tone={l.graded ? 'info' : 'neutral'}>{l.graded ? t.course.graded : t.course.practice}</Badge> : null}
+                    {l.kind === 'Quiz' ? <Button size="sm" variant="ghost" icon={<ListChecks size={14} />} onClick={() => setQuizLesson(l)}>{t.course.manageQuestions}</Button> : null}
                     <Badge tone={l.required ? 'accent' : 'neutral'}>{l.required ? t.learn.required : t.learn.optionalLesson}</Badge>
                     {editable ? (
                       <span className="flex items-center gap-1">
@@ -346,6 +477,11 @@ function ContentTab({ data, editable }: { data: EditorData; editable: boolean })
       ))}
       {editable ? <Button variant="ghost" icon={<Plus size={15} />} onClick={() => { setAddingModule(true); setModuleName(''); }}>{t.course.addModule}</Button> : null}
 
+      {quizLesson ? (
+        <Modal open onClose={() => setQuizLesson(null)} size="xl" title={`${t.course.manageQuestions} · ${quizLesson.title}`} description={quizLesson.graded ? `${t.course.graded} · ${t.quiz.passMark} ${quizLesson.passPercent}% · ${t.course.maxAttempts} ${quizLesson.maxAttempts}` : t.course.practiceHint}>
+          <QuestionList versionId={v.id} lessonId={quizLesson.id} questions={questionsOf(quizLesson.id)} editable={editable} />
+        </Modal>
+      ) : null}
       {lessonTarget ? (
         <LessonModal key={lessonTarget.lesson?.id ?? `new-${lessonTarget.moduleId}`} open onClose={() => setLessonTarget(null)} versionId={v.id} moduleId={lessonTarget.moduleId} lesson={lessonTarget.lesson} assets={data.assets} library={data.library} />
       ) : null}
@@ -358,22 +494,16 @@ function ContentTab({ data, editable }: { data: EditorData; editable: boolean })
 }
 
 function QuizTab({ data, editable }: { data: EditorData; editable: boolean }) {
-  const { t, locale, run, busy } = useApp();
+  const { t, run, busy } = useApp();
   const v = data.version;
+  const finals = v.questions.filter((q) => !q.lessonId);
   const [rules, setRules] = useState({ quizEnabled: v.quizEnabled, passPercent: v.passPercent, maxAttempts: v.maxAttempts, timeLimitMinutes: v.timeLimitMinutes ?? ('' as number | '') });
-  const [target, setTarget] = useState<{ question: QuestionState | null } | null>(null);
-  const total = v.questions.reduce((s, q) => s + q.points, 0);
   const dirty = rules.quizEnabled !== v.quizEnabled || rules.passPercent !== v.passPercent || rules.maxAttempts !== v.maxAttempts || (rules.timeLimitMinutes || null) !== v.timeLimitMinutes;
-
-  function move(i: number, d: -1 | 1) {
-    const ids = v.questions.map((q) => q.id); const j = i + d; if (j < 0 || j >= ids.length) return;
-    [ids[i], ids[j]] = [ids[j], ids[i]]; void run('question.reorder', { versionId: v.id, ids });
-  }
 
   return (
     <div className="grid gap-4 lg:grid-cols-[20rem_1fr]">
       <Card>
-        <SectionHeader title={t.learn.quiz} />
+        <SectionHeader title={t.course.finalExam} />
         <div className="mt-4 space-y-4">
           <Checkbox disabled={!editable} checked={rules.quizEnabled} onChange={(e) => setRules({ ...rules, quizEnabled: e.target.checked })} label={<><span className="font-medium">{t.course.quizEnabled}</span><span className="block text-[12px] text-[var(--text-faint)]">{t.course.quizEnabledHint}</span></>} />
           <Field label={t.course.passPercent}><Input disabled={!editable || !rules.quizEnabled} type="number" min={1} max={100} dir="ltr" value={rules.passPercent} onChange={(e) => setRules({ ...rules, passPercent: Number(e.target.value) })} /></Field>
@@ -382,41 +512,10 @@ function QuizTab({ data, editable }: { data: EditorData; editable: boolean }) {
           {editable ? <Button loading={busy} disabled={!dirty} onClick={() => run('version.update', { id: v.id, version: v.version, title: v.title, description: v.description, estimatedMinutes: v.estimatedMinutes, quizEnabled: rules.quizEnabled, passPercent: rules.passPercent, maxAttempts: rules.maxAttempts, timeLimitMinutes: rules.timeLimitMinutes || null })}>{t.common.save}</Button> : null}
         </div>
       </Card>
-      <Card padded={false}>
-        <div className="flex flex-wrap items-center justify-between gap-2 px-5 pt-5">
-          <SectionHeader title={t.course.questions} hint={`${t.course.totalPoints}: ${formatNumber(total, locale)}`} />
-          {editable ? <Button size="sm" icon={<Plus size={14} />} onClick={() => setTarget({ question: null })}>{t.course.addQuestion}</Button> : null}
-        </div>
-        {v.questions.length === 0 ? (
-          <EmptyState title={t.course.noQuestions} icon={<CheckCircle2 size={19} />} />
-        ) : (
-          <ol className="mt-3 divide-y divide-[var(--line-soft)]">
-            {v.questions.map((q, i) => (
-              <li key={q.id} className="flex gap-3 px-5 py-3.5">
-                <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-md bg-[var(--surface-sunken)] text-[12px] font-semibold tabular-nums">{i + 1}</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13.5px] font-medium leading-relaxed">{q.prompt}</p>
-                  <ul className="mt-1.5 flex flex-wrap gap-1.5">
-                    {(q.kind === 'TrueFalse' ? [{ id: 'true', text: t.quiz.true }, { id: 'false', text: t.quiz.false }] : q.choices).map((c) => (
-                      <li key={c.id}><Badge tone={c.id === q.correct ? 'positive' : 'neutral'}>{c.id === q.correct ? <CheckCircle2 size={11} /> : null}{c.text}</Badge></li>
-                    ))}
-                  </ul>
-                  <p className="mt-1.5 text-[11.5px] text-[var(--text-faint)]">{t.course.questionKinds[q.kind]} · {formatNumber(q.points, locale)} {t.quiz.points}</p>
-                </div>
-                {editable ? (
-                  <span className="flex shrink-0 items-start gap-1">
-                    <Button size="sm" variant="subtle" aria-label={t.common.moveUp} disabled={i === 0} onClick={() => move(i, -1)}><ArrowUp size={14} /></Button>
-                    <Button size="sm" variant="subtle" aria-label={t.common.moveDown} disabled={i === v.questions.length - 1} onClick={() => move(i, 1)}><ArrowDown size={14} /></Button>
-                    <Button size="sm" variant="subtle" aria-label={t.common.edit} onClick={() => setTarget({ question: q })}><Pencil size={14} /></Button>
-                    <Button size="sm" variant="subtle" aria-label={t.course.deleteQuestion} onClick={() => { if (confirm(t.course.deleteQuestion)) void run('question.delete', { versionId: v.id, id: q.id }); }}><Trash2 size={14} /></Button>
-                  </span>
-                ) : null}
-              </li>
-            ))}
-          </ol>
-        )}
+      <Card>
+        <SectionHeader title={t.course.questions} />
+        <div className="mt-3"><QuestionList versionId={v.id} lessonId={null} questions={finals} editable={editable} /></div>
       </Card>
-      {target ? <QuestionModal key={target.question?.id ?? 'new'} open onClose={() => setTarget(null)} versionId={v.id} question={target.question} /> : null}
     </div>
   );
 }
@@ -561,8 +660,9 @@ export function CourseEditor({ data, role, enrollments, assign }: { data: Editor
   const draft = data.versions.find((x) => x.status === 'Draft') ?? null;
   const archived = !!data.course.archivedAt;
   const editable = !v.locked && v.status !== 'Archived' && !archived;
-  const blockerKeys: PublishBlocker[] = ['title', 'requiredLesson', 'lessonContent', 'quizEmpty', 'quizInvalid', 'quizRules'];
-  const relevant = blockerKeys.filter((b) => v.quizEnabled || !b.startsWith('quiz'));
+  const blockerKeys: PublishBlocker[] = ['title', 'requiredLesson', 'lessonContent', 'lessonQuiz', 'quizEmpty', 'quizInvalid', 'quizRules'];
+  const hasQuizLessons = v.modules.some((m) => m.lessons.some((l) => l.kind === 'Quiz'));
+  const relevant = blockerKeys.filter((b) => (b === 'lessonQuiz' ? hasQuizLessons : v.quizEnabled || !b.startsWith('quiz')));
   const lessons = useMemo(() => v.modules.reduce((s, m) => s + m.lessons.length, 0), [v.modules]);
 
   async function newVersion() {
@@ -604,7 +704,7 @@ export function CourseEditor({ data, role, enrollments, assign }: { data: Editor
         <div className="min-w-0">
           <Tabs value={tab} onChange={(x) => setTab(x)} items={[
             { value: 'content', label: t.course.tabs.content },
-            { value: 'quiz', label: t.course.tabs.quiz, count: v.questions.length || undefined },
+            { value: 'quiz', label: t.course.finalExam, count: v.questions.filter((q) => !q.lessonId).length || undefined },
             { value: 'settings', label: t.course.tabs.settings },
             { value: 'learners', label: t.course.tabs.learners, count: enrollments.length || undefined },
             { value: 'versions', label: t.course.tabs.versions, count: data.versions.length },
@@ -641,7 +741,7 @@ export function CourseEditor({ data, role, enrollments, assign }: { data: Editor
             <DataList items={[
               { label: t.course.version, value: `${v.number} (${t.course.versionStatus[v.status as keyof typeof t.course.versionStatus] ?? v.status})` },
               { label: t.course.lessons, value: formatNumber(lessons, locale) },
-              { label: t.learn.quiz, value: v.quizEnabled ? `${formatNumber(v.questions.length, locale)} · ${t.quiz.passMark} ${v.passPercent}%` : t.common.none },
+              { label: t.course.finalExam, value: v.quizEnabled ? `${formatNumber(v.questions.filter((q) => !q.lessonId).length, locale)} · ${t.quiz.passMark} ${v.passPercent}%` : t.common.none },
               { label: t.course.publishedOn, value: v.publishedAt ? formatDate(v.publishedAt, locale) : '…' },
             ]} />
             {published && published.id !== v.id ? <Link href={`?v=${published.id}`} className="mt-3 flex items-center gap-1.5 text-[12.5px] font-medium text-copper-700 hover:underline"><BookOpen size={13} />{t.course.openVersion} {published.number}</Link> : null}

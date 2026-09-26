@@ -10,7 +10,70 @@ import { formatDate, formatDateTime, formatNumber } from '@/lib/format';
 import { isOverdue, progressPercent, VIDEO_THRESHOLD } from '@/lib/domain';
 import type { LearnerCourse, LessonState } from '@/lib/types';
 
-const kindIcon = { Text: Type, Pdf: FileText, Video: Film, Link: Link2 } as const;
+const kindIcon = { Text: Type, Pdf: FileText, Video: Film, Link: Link2, Quiz: ListChecks } as const;
+
+type Attempt = LearnerCourse['attempts'][number];
+
+/**
+ * One quiz as the learner sees it: the rules, past attempts and the next step.
+ * Used for a quiz lesson inside a module and for the final exam.
+ */
+function QuizPanel({ enrollmentId, lesson, title, rules, attempts, questionCount, locked, done, readOnly, bestScore }: {
+  enrollmentId: string; lesson: LessonState | null; title: string; rules: { passPercent: number; maxAttempts: number; timeLimitMinutes: number | null; graded: boolean };
+  attempts: Attempt[]; questionCount: number; locked: boolean; done: boolean; readOnly: boolean; bestScore?: number | null;
+}) {
+  const { t, locale, run, busy } = useApp();
+  const router = useRouter();
+  const base = `/${locale}/learn/${enrollmentId}`;
+  const open = attempts.find((a) => !a.submittedAt);
+  const waiting = attempts.some((a) => a.status === 'Review');
+  const passed = attempts.some((a) => a.passed === true);
+  const left = Math.max(0, rules.maxAttempts - attempts.length + (open ? 1 : 0));
+  async function start() {
+    const r = (await run('quiz.start', { enrollmentId, lessonId: lesson?.id ?? null }, { silent: true })) as { id: string } | null;
+    if (r) router.push(`${base}/quiz/${r.id}`);
+  }
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+        {!rules.graded ? <Badge>{t.learn.practiceBadge}</Badge> : null}
+        {done ? <Badge tone="positive"><CheckCircle2 size={12} />{t.learn.done}</Badge> : null}
+      </div>
+      {lesson?.body ? <p className="lesson-prose mt-2 text-[14px] text-[var(--text-muted)]" dir="auto">{lesson.body}</p> : null}
+      <p className="mt-2 text-[13.5px] text-[var(--text-muted)]">{rules.graded ? t.learn.quizInfo.replace('{pass}', String(rules.passPercent)).replace('{attempts}', String(rules.maxAttempts)) : t.learn.practiceInfo}</p>
+      {rules.timeLimitMinutes ? <p className="mt-1 text-[13.5px] text-[var(--text-muted)]">{t.learn.quizTimed.replace('{minutes}', String(rules.timeLimitMinutes))}</p> : null}
+      <div className="mt-4 flex flex-wrap gap-2 text-[13px]">
+        <Badge>{formatNumber(questionCount, locale)} {t.course.questionCount}</Badge>
+        <Badge>{t.learn.attemptsLeft}: {formatNumber(left, locale)}</Badge>
+        {bestScore !== undefined && bestScore !== null ? <Badge tone={passed ? 'positive' : 'caution'}>{t.learn.bestScore}: {formatNumber(bestScore, locale, 1)}%</Badge> : null}
+      </div>
+      {attempts.length ? (
+        <ul className="mt-4 divide-y divide-[var(--line-soft)] rounded-xl border border-[var(--line-soft)]">
+          {attempts.map((a) => (
+            <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-[13px]">
+              <span>{t.learn.attempt} {a.number} · <span className="text-[var(--text-faint)]">{formatDateTime(a.startedAt, locale)}</span></span>
+              {!a.submittedAt ? <Link href={`${base}/quiz/${a.id}`} className="font-medium text-copper-700 hover:underline">{t.learn.resumeQuiz}</Link>
+                : a.status === 'Review' ? <span className="flex items-center gap-2"><Badge tone="caution">{t.learn.pendingReview}</Badge><Link href={`${base}/quiz/${a.id}`} className="text-copper-700 hover:underline">{t.common.details}</Link></span>
+                : <span className="flex items-center gap-2"><span className="tabular-nums">{formatNumber(a.score, locale, 1)}%</span>{rules.graded ? <StatusBadge status={a.passed ? 'Completed' : 'Rejected'} label={a.passed ? t.learn.passed : t.learn.failed} /> : null}<Link href={`${base}/quiz/${a.id}`} className="text-copper-700 hover:underline">{t.common.details}</Link></span>}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <div className="mt-5">
+        {locked ? (
+          <p className="flex items-center gap-2 text-[13px] text-[var(--text-muted)]"><Lock size={15} />{t.learn.quizLocked}</p>
+        ) : readOnly || (rules.graded && passed) ? null : open ? (
+          <Link href={`${base}/quiz/${open.id}`}><Button variant="secondary">{t.learn.resumeQuiz}</Button></Link>
+        ) : waiting ? (
+          <p className="text-[13px] text-caution">{t.errors.pendingReview}</p>
+        ) : left > 0 ? (
+          <Button variant="secondary" loading={busy} icon={<PlayCircle size={16} />} onClick={start}>{t.learn.startQuiz}</Button>
+        ) : <p className="text-[13px] text-caution">{t.errors.noAttempts}</p>}
+      </div>
+    </div>
+  );
+}
 
 /**
  * Reports what was actually played, in spans. A span starts when playback
@@ -92,8 +155,7 @@ export function CoursePlayer({ data, lessonId }: { data: LearnerCourse; lessonId
   const base = `/${locale}/learn/${e.id}`;
   const readOnly = ['Withdrawn', 'Cancelled'].includes(e.status);
   const pct = progressPercent(e.requiredDone, e.requiredTotal);
-  const used = data.attempts.filter((a) => a.submittedAt).length;
-  const open = data.attempts.find((a) => !a.submittedAt);
+  const finalAttempts = data.attempts.filter((a) => a.scope === 'final');
   const quizUnlocked = e.requiredDone >= e.requiredTotal;
 
   useEffect(() => setProgress(data.progress), [data.progress]);
@@ -106,11 +168,6 @@ export function CoursePlayer({ data, lessonId }: { data: LearnerCourse; lessonId
     setProgress((p) => ({ ...p, [current.id]: { position: p[current.id]?.position ?? 0, watchedSeconds: watched, completedAt: completed ? (p[current.id]?.completedAt ?? new Date().toISOString()) : null } }));
     if (completed && !progress[current.id]?.completedAt) router.refresh();
   }, [current, progress, router]);
-
-  async function startQuiz() {
-    const r = (await run('quiz.start', { enrollmentId: e.id }, { silent: true })) as { id: string } | null;
-    if (r) router.push(`${base}/quiz/${r.id}`);
-  }
 
   const assetOk = (l: LessonState) => !!l.assetId && data.assets[l.assetId]?.status === 'Clean';
   const done = current ? !!progress[current.id]?.completedAt : false;
@@ -152,7 +209,7 @@ export function CoursePlayer({ data, lessonId }: { data: LearnerCourse; lessonId
             {v.quizEnabled ? (
               <Link href={`${base}?l=quiz`} aria-current={!current ? 'page' : undefined} className={cx('mt-1 flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium', !current ? 'bg-copper-100 text-copper-700' : 'hover:bg-[var(--surface-sunken)]')}>
                 {e.quizPassed ? <CheckCircle2 size={15} className="text-positive" /> : quizUnlocked ? <PlayCircle size={15} /> : <Lock size={15} className="text-[var(--text-faint)]" />}
-                {t.learn.quiz}
+                {t.course.finalExam}
               </Link>
             ) : null}
           </nav>
@@ -206,6 +263,11 @@ export function CoursePlayer({ data, lessonId }: { data: LearnerCourse; lessonId
                   </>
                 ) : <p className="rounded-xl bg-caution-soft px-4 py-3 text-[13px] text-caution">{t.learn.fileUnavailable}</p>
               ) : null}
+              {current.kind === 'Quiz' ? (
+                <div className="rounded-xl border border-[var(--line-soft)] p-5">
+                  <QuizPanel enrollmentId={e.id} lesson={current} title={t.course.kinds.Quiz} rules={current} attempts={data.attempts.filter((a) => a.scope === current.id)} questionCount={data.quizQuestions[current.id] ?? 0} locked={false} done={done} readOnly={readOnly} />
+                </div>
+              ) : null}
               {current.kind === 'Link' && current.url ? (
                 <div className="rounded-xl border border-dashed border-[var(--line-strong)] p-5">
                   {current.body ? <p className="lesson-prose mb-4" dir="auto">{current.body}</p> : null}
@@ -220,7 +282,7 @@ export function CoursePlayer({ data, lessonId }: { data: LearnerCourse; lessonId
                 {index > 0 ? <Link href={`${base}?l=${lessons[index - 1].id}`}><Button variant="ghost" size="sm" icon={locale === 'ar' ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}>{t.learn.previous}</Button></Link> : null}
                 {index < lessons.length - 1 ? <Link href={`${base}?l=${lessons[index + 1].id}`}><Button variant="ghost" size="sm">{t.learn.next}{locale === 'ar' ? <ChevronLeft size={15} /> : <ChevronRight size={15} />}</Button></Link> : v.quizEnabled ? <Link href={`${base}?l=quiz`}><Button variant="ghost" size="sm">{t.learn.quiz}</Button></Link> : null}
               </div>
-              {!readOnly && !done && current.kind !== 'Video' ? (
+              {!readOnly && !done && current.kind !== 'Video' && current.kind !== 'Quiz' ? (
                 <Button loading={busy} icon={<CheckCircle2 size={15} />} disabled={current.kind !== 'Text' && current.kind !== 'Link' && !assetOk(current)} onClick={async () => {
                   const r = await run('lesson.complete', { enrollmentId: e.id, lessonId: current.id }, { silent: true, refresh: true });
                   if (r) { setProgress((p) => ({ ...p, [current.id]: { ...(p[current.id] ?? { position: 0, watchedSeconds: 0 }), completedAt: new Date().toISOString() } })); if (index < lessons.length - 1) router.push(`${base}?l=${lessons[index + 1].id}`); }
@@ -231,34 +293,7 @@ export function CoursePlayer({ data, lessonId }: { data: LearnerCourse; lessonId
           </Card>
         ) : (
           <Card>
-            <h2 className="text-xl font-semibold tracking-tight">{t.learn.quiz}</h2>
-            <p className="mt-2 text-[13.5px] text-[var(--text-muted)]">{t.learn.quizInfo.replace('{pass}', String(v.passPercent)).replace('{attempts}', String(v.maxAttempts))}</p>
-            {v.timeLimitMinutes ? <p className="mt-1 text-[13.5px] text-[var(--text-muted)]">{t.learn.quizTimed.replace('{minutes}', String(v.timeLimitMinutes))}</p> : null}
-            <div className="mt-4 flex flex-wrap gap-3 text-[13px]">
-              <Badge>{t.learn.attemptsLeft}: {formatNumber(Math.max(0, v.maxAttempts - data.attempts.length + (open ? 1 : 0)), locale)}</Badge>
-              {e.bestScore !== null ? <Badge tone={e.quizPassed ? 'positive' : 'caution'}>{t.learn.bestScore}: {formatNumber(e.bestScore, locale, 1)}%</Badge> : null}
-            </div>
-            {data.attempts.length ? (
-              <ul className="mt-4 divide-y divide-[var(--line-soft)] rounded-xl border border-[var(--line-soft)]">
-                {data.attempts.map((a) => (
-                  <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-[13px]">
-                    <span>{t.learn.attempt} {a.number} · <span className="text-[var(--text-faint)]">{formatDateTime(a.startedAt, locale)}</span></span>
-                    {a.submittedAt ? (
-                      <span className="flex items-center gap-2"><span className="tabular-nums">{formatNumber(a.score, locale, 1)}%</span><StatusBadge status={a.passed ? 'Completed' : 'Rejected'} label={a.passed ? t.learn.passed : t.learn.failed} /><Link href={`${base}/quiz/${a.id}`} className="text-copper-700 hover:underline">{t.common.details}</Link></span>
-                    ) : <Link href={`${base}/quiz/${a.id}`} className="font-medium text-copper-700 hover:underline">{t.learn.resumeQuiz}</Link>}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <div className="mt-5">
-              {!quizUnlocked ? (
-                <p className="flex items-center gap-2 text-[13px] text-[var(--text-muted)]"><Lock size={15} />{t.learn.quizLocked}</p>
-              ) : e.quizPassed || readOnly ? null : open ? (
-                <Link href={`${base}/quiz/${open.id}`}><Button variant="secondary">{t.learn.resumeQuiz}</Button></Link>
-              ) : used < v.maxAttempts ? (
-                <Button variant="secondary" loading={busy} icon={<PlayCircle size={16} />} onClick={startQuiz}>{t.learn.startQuiz}</Button>
-              ) : <p className="text-[13px] text-caution">{t.errors.noAttempts}</p>}
-            </div>
+            <QuizPanel enrollmentId={e.id} lesson={null} title={t.course.finalExam} rules={{ passPercent: v.passPercent, maxAttempts: v.maxAttempts, timeLimitMinutes: v.timeLimitMinutes, graded: true }} attempts={finalAttempts} questionCount={v.questionCount} locked={!quizUnlocked} done={e.quizPassed} readOnly={readOnly || e.status === 'Completed'} bestScore={e.bestScore} />
           </Card>
         )}
       </section>

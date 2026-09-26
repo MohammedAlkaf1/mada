@@ -10,6 +10,7 @@ import {
   ScrollText,
   Settings,
   CreditCard,
+  ClipboardCheck,
   type LucideIcon,
 } from 'lucide-react';
 import type { Role } from '@/lib/domain';
@@ -33,6 +34,7 @@ export const navItems: NavItem[] = [
   { href: '/learn', key: 'learning', icon: GraduationCap, roles: staff, section: 'learn', learnerOnly: true },
   { href: '/my-certificates', key: 'myCertificates', icon: Award, roles: everyone, section: 'learn', learnerOnly: true },
   { href: '/courses', key: 'courses', icon: BookOpen, roles: staff, section: 'manage' },
+  { href: '/review', key: 'review', icon: ClipboardCheck, roles: staff, section: 'manage' },
   { href: '/reports', key: 'reports', icon: BarChart3, roles: staff, section: 'manage' },
   { href: '/certificates', key: 'certificates', icon: BadgeCheck, roles: staff, section: 'manage' },
   { href: '/files', key: 'files', icon: FolderOpen, roles: staff, section: 'manage' },

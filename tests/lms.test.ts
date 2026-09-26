@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  attemptDeadline, certificateSerial, csvCell, enrollmentStatus, gradeAttempt, isComplete, isOverdue, mergeIntervals,
+  answerCorrect, attemptDeadline, certificateSerial, csvCell, multipleKey, enrollmentStatus, gradeAttempt, isComplete, isOverdue, mergeIntervals,
   parseRole, planImport, plausibleSpan, progressPercent, publishBlockers, shortName, videoComplete, watchedSeconds,
 } from '../src/lib/domain';
 import { zip } from '../src/lib/zip';
@@ -167,5 +167,34 @@ describe('video byte ranges', () => {
     expect(parseRange('bytes=-100', 1000)).toEqual({ start: 900, end: 999 });
     expect(parseRange('bytes=2000-', 1000)).toBe('invalid');
     expect(parseRange(null, 1000)).toBeNull();
+  });
+});
+
+describe('question kinds and manual grading', () => {
+  const qs = [
+    { id: 'm', kind: 'Multiple', points: 2, correct: 'a,c', choices: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }, { id: 'c', text: 'C' }] },
+    { id: 's', kind: 'Single', points: 1, correct: 'b', choices: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }] },
+    { id: 'w', kind: 'Text', points: 3, correct: '', choices: [] },
+  ];
+  it('needs exactly the right set for a multiple answer question', () => {
+    expect(answerCorrect(qs[0], ['c', 'a'])).toBe(true);
+    expect(answerCorrect(qs[0], ['a'])).toBe(false);
+    expect(answerCorrect(qs[0], ['a', 'b', 'c'])).toBe(false);
+    expect(multipleKey(['c', 'a', 'a'])).toBe('a,c');
+  });
+  it('leaves the verdict open while a written answer is ungraded', () => {
+    const g = gradeAttempt(qs, { m: ['a', 'c'], s: 'b', w: 'نص' }, 70);
+    expect(g).toMatchObject({ earned: 3, total: 6, pending: true, passed: null });
+  });
+  it('adds the reviewer points, clamped to the question', () => {
+    expect(gradeAttempt(qs, { m: ['a', 'c'], s: 'b' }, 70, { w: 2 })).toMatchObject({ earned: 5, pending: false, passed: true });
+    expect(gradeAttempt(qs, {}, 70, { w: 99 })).toMatchObject({ earned: 3, passed: false });
+  });
+  it('checks each quiz lesson before publishing', () => {
+    const base = { title: 'A', quizEnabled: false, passPercent: 70, maxAttempts: 3 };
+    const lessons = [{ id: 't', kind: 'Text', required: true, body: 'x', url: null, assetId: null }, { id: 'q', kind: 'Quiz', required: true, body: '', url: null, assetId: null, passPercent: 70, maxAttempts: 2 }];
+    expect(publishBlockers({ ...base, lessons, questions: [] })).toContain('lessonQuiz');
+    expect(publishBlockers({ ...base, lessons, questions: [{ lessonId: 'q', kind: 'Text', prompt: 'اشرح', points: 2, correct: '', choices: [] }] })).toEqual([]);
+    expect(publishBlockers({ ...base, lessons, questions: [{ lessonId: 'q', kind: 'Multiple', prompt: 'P', points: 1, correct: 'z', choices: [{ id: 'a', text: 'A' }, { id: 'b', text: 'B' }] }] })).toContain('lessonQuiz');
   });
 });

@@ -10,11 +10,12 @@ import {pipeline} from 'node:stream/promises';
  * access check in /api/files. In Docker the directory is a named volume that
  * the backup job copies alongside the database.
  */
-export function filesDirectory(){return path.resolve(process.env.FILES_DIR??'data/files');}
+// The ignore hints keep Next from tracing the whole project (and every stored video) into the build.
+export function filesDirectory(){return path.resolve(/*turbopackIgnore: true*/ process.env.FILES_DIR??'data/files');}
 
 function resolveKey(key:string){
  if(!/^[a-f0-9-]{36}$/.test(key))throw new Error('bad key');
- return path.join(filesDirectory(),key.slice(0,2),key);
+ return path.join(/*turbopackIgnore: true*/ filesDirectory(),key.slice(0,2),key);
 }
 
 export const LIMITS={file:100*1024*1024,video:1024*1024*1024,image:5*1024*1024};

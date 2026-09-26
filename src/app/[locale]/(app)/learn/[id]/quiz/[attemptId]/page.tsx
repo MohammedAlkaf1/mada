@@ -12,5 +12,5 @@ export default async function QuizPage({ params }: Props) {
   const { attemptId } = await params;
   if (!/^[0-9a-f-]{36}$/.test(attemptId)) notFound();
   const attempt = await orNotFound(attemptView(actor, attemptId));
-  return <QuizView key={`${attempt.id}:${attempt.submittedAt ?? ''}`} attempt={attempt} />;
+  return <QuizView key={`${attempt.id}:${attempt.status}`} attempt={attempt} />;
 }

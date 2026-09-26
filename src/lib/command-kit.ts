@@ -40,15 +40,17 @@ export async function mail(tx:Tx,tenantId:string,recipient:string,subject:string
  * a fresh valid one (FR-15).
  */
 export async function settle(tx:Tx,tenantId:string,enrollmentId:string){
- const e=await tx.enrollment.findFirst({where:{id:enrollmentId,tenantId},include:{courseVersion:{include:{lessons:{select:{id:true,required:true}}}},progress:{where:{completedAt:{not:null}},select:{lessonId:true}},attempts:{where:{submittedAt:{not:null}},select:{score:true,passed:true}},certificate:true,membership:{include:{user:true,tenant:true}}}});
+ const e=await tx.enrollment.findFirst({where:{id:enrollmentId,tenantId},include:{courseVersion:{include:{lessons:{select:{id:true,required:true}}}},progress:{where:{completedAt:{not:null}},select:{lessonId:true}},attempts:{where:{submittedAt:{not:null}},select:{score:true,passed:true,scope:true}},certificate:true,membership:{include:{user:true,tenant:true}}}});
  if(!e)return null;
  if(['Withdrawn','Cancelled'].includes(e.status))return e;
  const required=e.courseVersion.lessons.filter((l:{required:boolean})=>l.required).map((l:{id:string})=>l.id);
  const done=new Set(e.progress.map((p:{lessonId:string})=>p.lessonId));
  const requiredDone=required.filter((id:string)=>done.has(id)).length;
- const scores=e.attempts.map((x:{score:number|null})=>x.score).filter((x:number|null):x is number=>x!==null);
+ // Only the final exam decides quizPassed and the best score; quiz lessons count as lessons.
+ const finals=e.attempts.filter((x:{scope:string})=>x.scope==='final');
+ const scores=finals.map((x:{score:number|null})=>x.score).filter((x:number|null):x is number=>x!==null);
  const bestScore=scores.length?Math.max(...scores):null;
- const quizPassed=e.attempts.some((x:{passed:boolean|null})=>x.passed===true);
+ const quizPassed=finals.some((x:{passed:boolean|null})=>x.passed===true);
  const input={requiredDone,requiredTotal:required.length,quizEnabled:e.courseVersion.quizEnabled,quizPassed};
  const started=!!e.startedAt||done.size>0||e.attempts.length>0;
  const status=enrollmentStatus({...input,started});

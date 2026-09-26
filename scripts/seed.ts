@@ -20,6 +20,7 @@ import { settle } from '../src/lib/command-kit';
 import { gradeAttempt, trueFalseChoices } from '../src/lib/domain';
 import { newSecret, seal, otp } from '../src/lib/totp';
 import { writeBuffer } from '../src/lib/storage';
+import { seedShowcase, SHOWCASE_TITLE } from './showcase-course';
 
 if (process.env.NODE_ENV === 'production') throw new Error('The demo seed never runs in production');
 
@@ -114,16 +115,17 @@ async function wipe() {
   for (const t of tables) await db.$executeRawUnsafe(`DELETE FROM "${t}"`);
 }
 
-/** A short safety guide rendered by the local browser. Skipped quietly where no browser exists. */
-async function safetyPdf() {
+/** A one page Arabic handout rendered by the local browser. Skipped quietly where no browser exists. */
+async function handout(title: string, subtitle: string, items: string[]) {
   try {
     const { renderPdf } = await import('../src/lib/pdf');
-    const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600&display=swap" rel="stylesheet"><style>body{font-family:'IBM Plex Sans Arabic',Tahoma,sans-serif;color:#16323b;line-height:1.9}h1{color:#0e6e6b}li{margin-bottom:6pt}</style></head><body><h1>دليل السلامة المختصر</h1><p>نخلة للتجزئة · المستودعات والفروع</p><ol><li>ارتدِ حذاء السلامة داخل المستودع في كل وقت.</li><li>لا ترفع وحدك ما يزيد على خمسة وعشرين كيلوجرامًا.</li><li>أبقِ ممرات الطوارئ خالية ومضاءة.</li><li>ضع علامة التحذير عند أي انسكاب قبل تنظيفه.</li><li>أبلغ المشرف عن أي إصابة مهما كانت بسيطة.</li></ol></body></html>`;
+    const html = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600&display=swap" rel="stylesheet"><style>body{font-family:'IBM Plex Sans Arabic',Tahoma,sans-serif;color:#16323b;line-height:1.9}h1{color:#0e6e6b}li{margin-bottom:6pt}</style></head><body><h1>${title}</h1><p>${subtitle}</p><ol>${items.map((i) => `<li>${i}</li>`).join('')}</ol></body></html>`;
     return await renderPdf(html);
   } catch {
     return null;
   }
 }
+const safetyPdf = () => handout('دليل السلامة المختصر', 'نخلة للتجزئة · المستودعات والفروع', ['ارتدِ حذاء السلامة داخل المستودع في كل وقت.', 'لا ترفع وحدك ما يزيد على خمسة وعشرين كيلوجرامًا.', 'أبقِ ممرات الطوارئ خالية ومضاءة.', 'ضع علامة التحذير عند أي انسكاب قبل تنظيفه.', 'أبلغ المشرف عن أي إصابة مهما كانت بسيطة.']);
 
 async function main() {
   if (await db.tenant.count()) {
@@ -248,8 +250,13 @@ async function main() {
       }
     }
   }
+  // The example course with videos, quizzes of every kind and answers waiting for the instructor.
+  const meetingPdf = await handout('نموذج الاجتماع اليومي', 'نخلة للتجزئة · للمشرفين', ['نتيجة الأمس في رقم واحد: المبيعات أو الطلبات المنجزة.', 'أولوية اليوم: عرض، شحنة، أو نقص في قسم.', 'عائق يحتاج مساعدة، ومن يتولاه.', 'تقدير لجهد زميل باسمه.', 'بعد الاجتماع: سجّل الاتفاق في لوحة الفرع وتابع العائق قبل الظهر.']);
+  const showcase = await seedShowcase({ db, tenantId: tenant.id, adminId: demo.Admin.userId, instructorId: demo.Instructor.userId, learnerMembershipId: demo.Learner.membershipId, groupId: groups[2].id, groupMembers: learners.filter((l) => l.groups.includes(2)).map((l) => l.membershipId), pdf: meetingPdf, ago });
+  console.log(`Example course "${SHOWCASE_TITLE}" ready with ${showcase.videoSeconds} seconds of video`);
+
   // One revoked certificate, so the verification page has both states to show.
-  const revoke = await db.certificate.findFirst({ where: { tenantId: tenant.id, enrollment: { membershipId: { not: demo.Learner.membershipId } } }, orderBy: { issuedAt: 'asc' } });
+  const revoke = await db.certificate.findFirst({ where: { tenantId: tenant.id, courseTitle: { not: SHOWCASE_TITLE }, enrollment: { membershipId: { not: demo.Learner.membershipId } } }, orderBy: { issuedAt: 'asc' } });
   if (revoke) await db.certificate.update({ where: { id: revoke.id }, data: { status: 'Revoked', revokedAt: ago(2), revokedBy: demo.Admin.userId, revokeReason: 'أُسندت الدورة بالخطأ لموظف منتقل' } });
 
   await db.notification.createMany({ data: [
@@ -259,7 +266,7 @@ async function main() {
   await db.audit.create({ data: { tenantId: tenant.id, actorId: demo.Admin.userId, action: 'tenant.signup', entityId: tenant.id, detail: { plan: 'growth', seed: true }, createdAt: ago(70) } });
 
   enableDemoLogin();
-  console.log(`\nSeed complete: 1 organization, ${learners.length + 2} people, ${COURSES.length} courses, ${enrollments} enrollments, ${certificates} certificates${pdf ? '' : ' (no local browser, the PDF lesson became text)'}`);
+  console.log(`\nSeed complete: 1 organization, ${learners.length + 2} people, ${await db.course.count()} courses, ${await db.enrollment.count()} enrollments, ${await db.certificate.count()} certificates${pdf ? '' : ' (no local browser, the PDF lesson became text)'}`);
   console.log(`\nSign in with password ${DEMO_PASSWORD}:`);
   for (const account of DEMO_ACCOUNTS) console.log(`  ${account.role.padEnd(11)} ${account.email}`);
   console.log(`\nTwo step verification secret for all three: ${secret}`);

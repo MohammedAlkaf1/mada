@@ -1,7 +1,7 @@
 import {createConnection} from 'node:net';
 import type {Readable} from 'node:stream';
 
-export const acceptedKinds={pdf:'application/pdf',mp4:'video/mp4',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp'} as const;
+export const acceptedKinds={pdf:'application/pdf',mp4:'video/mp4',webm:'video/webm',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp'} as const;
 
 /**
  * Decides the type from the bytes, not from what the browser claims (FR-07).
@@ -15,6 +15,7 @@ export function fileType(bytes:Buffer,name:string){
  if(['jpg','jpeg'].includes(ext??'')&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255)return 'image/jpeg';
  if(ext==='webp'&&bytes.subarray(0,4).toString()==='RIFF'&&bytes.subarray(8,12).toString()==='WEBP')return 'image/webp';
  if(ext==='mp4'&&bytes.subarray(4,8).toString()==='ftyp')return 'video/mp4';
+ if(ext==='webm'&&bytes.subarray(0,4).equals(Buffer.from([0x1a,0x45,0xdf,0xa3])))return 'video/webm';
  return null;
 }
 

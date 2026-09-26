@@ -1,7 +1,7 @@
 import {z} from 'zod';
 import {db} from './db';
 import {manageableCourse,manageableVersion,requireRole,type Actor} from './access';
-import {DomainError,lessonKinds,publishBlockers,trueFalseChoices,versionLocked} from './domain';
+import {DomainError,lessonKinds,multipleKey,publishBlockers,questionKinds,trueFalseChoices,versionLocked} from './domain';
 import {assertWithinPlan} from './billing';
 import {auditor,notify,type Tx} from './command-kit';
 
@@ -22,11 +22,12 @@ async function editableVersion(a:Actor,versionId:string){
 async function copyVersion(tx:Tx,a:Actor,fromId:string,number:number){
  const src=await tx.courseVersion.findUniqueOrThrow({where:{id:fromId},include:{modules:{orderBy:{position:'asc'},include:{lessons:{orderBy:{position:'asc'}}}},questions:{orderBy:{position:'asc'}}}});
  const v=await tx.courseVersion.create({data:{tenantId:a.tenantId,courseId:src.courseId,number,status:'Draft',title:src.title,description:src.description,coverAssetId:src.coverAssetId,estimatedMinutes:src.estimatedMinutes,quizEnabled:src.quizEnabled,passPercent:src.passPercent,maxAttempts:src.maxAttempts,timeLimitMinutes:src.timeLimitMinutes}});
+ const lessonMap=new Map<string,string>();
  for(const m of src.modules){
   const nm=await tx.module.create({data:{tenantId:a.tenantId,versionId:v.id,title:m.title,position:m.position}});
-  for(const l of m.lessons)await tx.lesson.create({data:{tenantId:a.tenantId,versionId:v.id,moduleId:nm.id,title:l.title,kind:l.kind,body:l.body,url:l.url,assetId:l.assetId,durationSeconds:l.durationSeconds,required:l.required,position:l.position}});
+  for(const l of m.lessons){const nl=await tx.lesson.create({data:{tenantId:a.tenantId,versionId:v.id,moduleId:nm.id,title:l.title,kind:l.kind,body:l.body,url:l.url,assetId:l.assetId,durationSeconds:l.durationSeconds,required:l.required,position:l.position,graded:l.graded,passPercent:l.passPercent,maxAttempts:l.maxAttempts,timeLimitMinutes:l.timeLimitMinutes}});lessonMap.set(l.id,nl.id);}
  }
- for(const q of src.questions)await tx.question.create({data:{tenantId:a.tenantId,versionId:v.id,kind:q.kind,prompt:q.prompt,choices:q.choices,correct:q.correct,points:q.points,position:q.position}});
+ for(const q of src.questions)await tx.question.create({data:{tenantId:a.tenantId,versionId:v.id,lessonId:q.lessonId?lessonMap.get(q.lessonId)??null:null,kind:q.kind,prompt:q.prompt,choices:q.choices,correct:q.correct,guide:q.guide,points:q.points,position:q.position}});
  return v;
 }
 
@@ -88,15 +89,17 @@ export async function courseCommand(a:Actor,action:string,data:Record<string,unk
  }
  case 'module.delete':{
   const x=z.object({versionId:id,id}).parse(data);const v=await editableVersion(a,x.versionId);
-  return db.$transaction(async tx=>{const m=await tx.module.findFirst({where:{id:x.id,versionId:v.id,tenantId:a.tenantId}});if(!m)throw new DomainError('notFound',404);await tx.lesson.deleteMany({where:{moduleId:m.id,tenantId:a.tenantId}});await tx.module.delete({where:{id:m.id}});await log(tx,m.id);return {ok:true};});
+  return db.$transaction(async tx=>{const m=await tx.module.findFirst({where:{id:x.id,versionId:v.id,tenantId:a.tenantId}});if(!m)throw new DomainError('notFound',404);const quizIds=(await tx.lesson.findMany({where:{moduleId:m.id,tenantId:a.tenantId},select:{id:true}})).map((l:{id:string})=>l.id);await tx.question.deleteMany({where:{lessonId:{in:quizIds}}});await tx.lesson.deleteMany({where:{moduleId:m.id,tenantId:a.tenantId}});await tx.module.delete({where:{id:m.id}});await log(tx,m.id);return {ok:true};});
  }
  case 'lesson.save':{
-  const x=z.object({versionId:id,moduleId:id,id:id.optional(),title,kind:z.enum(lessonKinds),body:longText.default(''),url:z.string().trim().max(2000).nullable().optional(),assetId:id.nullable().optional(),durationSeconds:z.coerce.number().int().min(0).max(86400).default(0),required:z.boolean().default(true)}).parse(data);
+  const x=z.object({versionId:id,moduleId:id,id:id.optional(),title,kind:z.enum(lessonKinds),body:longText.default(''),url:z.string().trim().max(2000).nullable().optional(),assetId:id.nullable().optional(),durationSeconds:z.coerce.number().int().min(0).max(86400).default(0),required:z.boolean().default(true),graded:z.boolean().default(true),passPercent:z.coerce.number().int().min(1).max(100).default(70),maxAttempts:z.coerce.number().int().min(1).max(20).default(3),timeLimitMinutes:z.coerce.number().int().min(1).max(600).nullable().default(null)}).parse(data);
   const v=await editableVersion(a,x.versionId);
   if(x.kind==='Link'&&x.url&&!/^https:\/\/[^\s]+$/.test(x.url))throw new DomainError('linkInvalid',422);
   if(!await db.module.findFirst({where:{id:x.moduleId,versionId:v.id,tenantId:a.tenantId}}))throw new DomainError('notFound',404);
-  if(['Pdf','Video'].includes(x.kind)&&x.assetId){const asset=await db.asset.findFirst({where:{id:x.assetId,tenantId:a.tenantId}});if(!asset||asset.status==='Rejected'||(x.kind==='Pdf'&&asset.mime!=='application/pdf')||(x.kind==='Video'&&asset.mime!=='video/mp4'))throw new DomainError('fileType',422);}
-  const values={title:x.title,kind:x.kind,body:x.kind==='Text'?x.body:x.body.slice(0,4000),url:x.kind==='Link'?x.url??null:null,assetId:['Pdf','Video'].includes(x.kind)?x.assetId??null:null,durationSeconds:x.kind==='Video'?x.durationSeconds:0,required:x.required,moduleId:x.moduleId};
+  if(['Pdf','Video'].includes(x.kind)&&x.assetId){const asset=await db.asset.findFirst({where:{id:x.assetId,tenantId:a.tenantId}});if(!asset||asset.status==='Rejected'||(x.kind==='Pdf'&&asset.mime!=='application/pdf')||(x.kind==='Video'&&!asset.mime.startsWith('video/')))throw new DomainError('fileType',422);}
+  const values={title:x.title,kind:x.kind,body:x.kind==='Text'?x.body:x.body.slice(0,4000),url:x.kind==='Link'?x.url??null:null,assetId:['Pdf','Video'].includes(x.kind)?x.assetId??null:null,durationSeconds:x.kind==='Video'?x.durationSeconds:0,required:x.required,moduleId:x.moduleId,
+   // A practice quiz never blocks completion, so it is never required.
+   ...(x.kind==='Quiz'?{graded:x.graded,passPercent:x.passPercent,maxAttempts:x.maxAttempts,timeLimitMinutes:x.timeLimitMinutes,required:x.graded&&x.required}:{})};
   return db.$transaction(async tx=>{
    if(x.id){const r=await tx.lesson.updateMany({where:{id:x.id,versionId:v.id,tenantId:a.tenantId},data:values});if(!r.count)throw new DomainError('notFound',404);await log(tx,x.id,{kind:x.kind});return {id:x.id};}
    const position=await tx.lesson.count({where:{moduleId:x.moduleId}});const l=await tx.lesson.create({data:{...values,tenantId:a.tenantId,versionId:v.id,position}});await log(tx,l.id,{kind:x.kind});return {id:l.id};
@@ -104,7 +107,7 @@ export async function courseCommand(a:Actor,action:string,data:Record<string,unk
  }
  case 'lesson.delete':{
   const x=z.object({versionId:id,id}).parse(data);const v=await editableVersion(a,x.versionId);
-  return db.$transaction(async tx=>{const r=await tx.lesson.deleteMany({where:{id:x.id,versionId:v.id,tenantId:a.tenantId}});if(!r.count)throw new DomainError('notFound',404);await log(tx,x.id);return {ok:true};});
+  return db.$transaction(async tx=>{await tx.question.deleteMany({where:{lessonId:x.id,versionId:v.id,tenantId:a.tenantId}});const r=await tx.lesson.deleteMany({where:{id:x.id,versionId:v.id,tenantId:a.tenantId}});if(!r.count)throw new DomainError('notFound',404);await log(tx,x.id);return {ok:true};});
  }
  case 'outline.reorder':{
   // The whole outline in one call: module order, and which lessons sit in which module in which order.
@@ -119,14 +122,20 @@ export async function courseCommand(a:Actor,action:string,data:Record<string,unk
   });
  }
  case 'question.save':{
-  const x=z.object({versionId:id,id:id.optional(),kind:z.enum(['Single','TrueFalse']),prompt:z.string().trim().min(1).max(2000),choices:z.array(choice).max(8).default([]),correct:z.string().trim().min(1).max(40),points:z.coerce.number().int().min(1).max(100).default(1)}).parse(data);
+  const x=z.object({versionId:id,lessonId:id.nullable().default(null),id:id.optional(),kind:z.enum(questionKinds),prompt:z.string().trim().min(1).max(2000),choices:z.array(choice).max(8).default([]),correct:z.union([z.string().trim().max(40),z.array(z.string().trim().min(1).max(40)).max(8)]).default(''),guide:z.string().trim().max(4000).default(''),points:z.coerce.number().int().min(1).max(100).default(1)}).parse(data);
   const v=await editableVersion(a,x.versionId);
-  const choices=x.kind==='TrueFalse'?trueFalseChoices():x.choices;
-  if(choices.length<2||new Set(choices.map(c=>c.id)).size!==choices.length||!choices.some(c=>c.id===x.correct))throw new DomainError('quizInvalid',422);
+  // A question belongs to the final exam (no lesson) or to a quiz lesson of the same version.
+  if(x.lessonId&&!await db.lesson.findFirst({where:{id:x.lessonId,versionId:v.id,tenantId:a.tenantId,kind:'Quiz'}}))throw new DomainError('notFound',404);
+  const choices=x.kind==='TrueFalse'?trueFalseChoices():x.kind==='Text'?[]:x.choices;
+  const ids=new Set(choices.map(c=>c.id));
+  let correct='';
+  if(x.kind==='Multiple'){const picked=Array.isArray(x.correct)?x.correct:String(x.correct).split(',').filter(Boolean);if(!picked.length||picked.some(p=>!ids.has(p)))throw new DomainError('quizInvalid',422);correct=multipleKey(picked);}
+  else if(x.kind!=='Text'){correct=Array.isArray(x.correct)?x.correct[0]??'':x.correct;if(!ids.has(correct))throw new DomainError('quizInvalid',422);}
+  if(x.kind!=='Text'&&(choices.length<2||ids.size!==choices.length))throw new DomainError('quizInvalid',422);
   return db.$transaction(async tx=>{
-   const values={kind:x.kind,prompt:x.prompt,choices,correct:x.correct,points:x.points};
+   const values={kind:x.kind,prompt:x.prompt,choices,correct,guide:x.kind==='Text'?x.guide:'',points:x.points};
    if(x.id){const r=await tx.question.updateMany({where:{id:x.id,versionId:v.id,tenantId:a.tenantId},data:values});if(!r.count)throw new DomainError('notFound',404);await log(tx,x.id);return {id:x.id};}
-   const position=await tx.question.count({where:{versionId:v.id}});const q=await tx.question.create({data:{...values,tenantId:a.tenantId,versionId:v.id,position}});await log(tx,q.id);return {id:q.id};
+   const position=await tx.question.count({where:{versionId:v.id,lessonId:x.lessonId}});const q=await tx.question.create({data:{...values,lessonId:x.lessonId,tenantId:a.tenantId,versionId:v.id,position}});await log(tx,q.id,{kind:x.kind});return {id:q.id};
   });
  }
  case 'question.delete':{
@@ -134,8 +143,9 @@ export async function courseCommand(a:Actor,action:string,data:Record<string,unk
   return db.$transaction(async tx=>{const r=await tx.question.deleteMany({where:{id:x.id,versionId:v.id,tenantId:a.tenantId}});if(!r.count)throw new DomainError('notFound',404);await log(tx,x.id);return {ok:true};});
  }
  case 'question.reorder':{
-  const x=z.object({versionId:id,ids:z.array(id).max(300)}).parse(data);const v=await editableVersion(a,x.versionId);
-  const existing=await db.question.findMany({where:{versionId:v.id,tenantId:a.tenantId},select:{id:true}});
+  // Reorders the questions of one quiz: the final exam when lessonId is null.
+  const x=z.object({versionId:id,lessonId:id.nullable().default(null),ids:z.array(id).max(300)}).parse(data);const v=await editableVersion(a,x.versionId);
+  const existing=await db.question.findMany({where:{versionId:v.id,tenantId:a.tenantId,lessonId:x.lessonId},select:{id:true}});
   if(existing.length!==x.ids.length||existing.some(q=>!x.ids.includes(q.id)))throw new DomainError('invalid');
   return db.$transaction(async tx=>{for(const [i,q] of x.ids.entries())await tx.question.update({where:{id:q},data:{position:i}});await log(tx,v.id);return {ok:true};});
  }

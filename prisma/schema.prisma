@@ -161,22 +161,34 @@ model Lesson {
   durationSeconds Int @default(0)
   required Boolean @default(true)
   position Int
+  /// Quiz lessons only. A graded quiz must be passed to complete the lesson;
+  /// a practice quiz completes on submission and never blocks the course.
+  graded Boolean @default(true)
+  passPercent Int @default(70)
+  maxAttempts Int @default(3)
+  timeLimitMinutes Int?
   courseVersion CourseVersion @relation(fields:[tenantId,versionId],references:[tenantId,id])
   module Module @relation(fields:[tenantId,moduleId],references:[tenantId,id])
   progress LessonProgress[]
   @@unique([tenantId,id])
 }
 
-/// Single choice or TrueFalse. The correct choice never leaves the server
-/// while an attempt is open.
+/// Single, Multiple, TrueFalse or Text. The first three are graded by the
+/// server; a Text answer waits for an instructor. `lessonId` null means the
+/// final exam of the version, otherwise the quiz lesson it belongs to. The
+/// correct choice never leaves the server while an attempt is open.
 model Question {
   id String @id @default(uuid())
   tenantId String
   versionId String
+  lessonId String?
   kind String @default("Single")
   prompt String
   choices Json @default("[]")
-  correct String
+  /// A choice id, or for Multiple the sorted ids joined by commas. Empty for Text.
+  correct String @default("")
+  /// For Text: the model answer shown to the reviewer, never to the learner before grading.
+  guide String @default("")
   points Int @default(1)
   position Int
   courseVersion CourseVersion @relation(fields:[tenantId,versionId],references:[tenantId,id])
@@ -238,8 +250,17 @@ model QuizAttempt {
   id String @id @default(uuid())
   tenantId String
   enrollmentId String
+  /// "final" for the final exam, otherwise the id of the quiz lesson.
+  scope String @default("final")
+  lessonId String?
   number Int
+  /// Open, Review (waiting for a written answer to be graded) or Graded.
+  status String @default("Open")
   answers Json @default("{}")
+  /// Points given by the reviewer to each Text question, and an optional comment.
+  review Json @default("{}")
+  reviewedBy String?
+  reviewedAt DateTime?
   startedAt DateTime @default(now())
   deadlineAt DateTime?
   submittedAt DateTime?
@@ -248,7 +269,8 @@ model QuizAttempt {
   score Float?
   passed Boolean?
   enrollment Enrollment @relation(fields:[tenantId,enrollmentId],references:[tenantId,id])
-  @@unique([enrollmentId,number])
+  @@unique([enrollmentId,scope,number])
+  @@index([tenantId,status])
 }
 
 /// Names and titles are copied at issue time so a later rename of the

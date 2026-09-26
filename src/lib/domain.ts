@@ -8,9 +8,12 @@ export const roles=['Admin','Instructor','Learner'] as const;
 export type Role=typeof roles[number];
 export const staffRoles:Role[]=['Admin','Instructor'];
 
-export const lessonKinds=['Text','Pdf','Video','Link'] as const;
+export const lessonKinds=['Text','Pdf','Video','Link','Quiz'] as const;
 export type LessonKind=typeof lessonKinds[number];
-export const questionKinds=['Single','TrueFalse'] as const;
+export const questionKinds=['Single','Multiple','TrueFalse','Text'] as const;
+export type QuestionKind=typeof questionKinds[number];
+/** Only a written answer needs a person; everything else is graded by the server. */
+export const autoGraded=(kind:string)=>kind!=='Text';
 
 export class DomainError extends Error {constructor(public code:string,public status=400){super(code);}}
 
@@ -73,18 +76,30 @@ export function isOverdue(e:{dueAt:string|Date|null;status:string},now=new Date(
 /* ───────────── Quiz (FR-11, FR-12, FR-13) ───────────── */
 
 export type Choice={id:string;text:string};
-export type GradableQuestion={id:string;points:number;correct:string;choices:Choice[]};
+export type GradableQuestion={id:string;kind?:string;points:number;correct:string;choices:Choice[]};
+
+/** The key of a multiple answer question is its correct ids, sorted and joined. */
+export function multipleKey(ids:string[]){return [...new Set(ids)].sort().join(',');}
+
+/** Whether one stored answer earns the question's points. Multiple needs exactly the right set, no more and no less. */
+export function answerCorrect(q:GradableQuestion,answer:unknown){
+ if(q.kind==='Text')return false;
+ if(q.kind==='Multiple')return Array.isArray(answer)&&multipleKey(answer.map(String))===q.correct;
+ return answer===q.correct;
+}
 
 /**
  * Earned points over total points. Unanswered or unknown answers score zero.
- * Reaching the pass mark exactly is a pass; the percentage is compared
- * before any rounding so display rounding can never flip the verdict.
+ * Written answers take the points a reviewer gave them; while any is still
+ * ungraded the result is pending and no verdict is given. Reaching the pass
+ * mark exactly is a pass, compared before any rounding.
  */
-export function gradeAttempt(questions:GradableQuestion[],answers:Record<string,unknown>,passPercent:number){
+export function gradeAttempt(questions:GradableQuestion[],answers:Record<string,unknown>,passPercent:number,review:Record<string,number>={}){
  const total=questions.reduce((s,q)=>s+q.points,0);
- const earned=questions.reduce((s,q)=>s+(answers[q.id]===q.correct?q.points:0),0);
+ const pending=questions.some(q=>q.kind==='Text'&&!(q.id in review));
+ const earned=questions.reduce((s,q)=>s+(q.kind==='Text'?Math.max(0,Math.min(q.points,Number(review[q.id])||0)):answerCorrect(q,answers[q.id])?q.points:0),0);
  const score=total>0?earned/total*100:0;
- return {earned,total,score,passed:total>0&&earned*100>=passPercent*total};
+ return {earned,total,score,pending,passed:pending?null:total>0&&earned*100>=passPercent*total};
 }
 
 export function trueFalseChoices(ar=true):Choice[]{return [{id:'true',text:ar?'صح':'True'},{id:'false',text:ar?'خطأ':'False'}];}
@@ -98,15 +113,24 @@ export function attemptDeadline(startedAt:Date,timeLimitMinutes:number|null|unde
    The editor shows this list as a checklist and course.publish enforces the
    same list, so the screen never promises what the server will refuse. */
 
-export type PublishBlocker='title'|'requiredLesson'|'lessonContent'|'quizEmpty'|'quizInvalid'|'quizRules';
+export type PublishBlocker='title'|'requiredLesson'|'lessonContent'|'quizEmpty'|'quizInvalid'|'quizRules'|'lessonQuiz';
 export type PublishInput={
  title:string;
- lessons:{kind:string;required:boolean;body:string;url:string|null;assetId:string|null;assetClean?:boolean}[];
+ lessons:{id?:string;kind:string;required:boolean;body:string;url:string|null;assetId:string|null;assetClean?:boolean;passPercent?:number;maxAttempts?:number}[];
  quizEnabled:boolean;passPercent:number;maxAttempts:number;
- questions:{prompt:string;points:number;correct:string;choices:Choice[]}[];
+ questions:{lessonId?:string|null;kind?:string;prompt:string;points:number;correct:string;choices:Choice[]}[];
 };
 
+export function questionValid(q:PublishInput['questions'][number]){
+ if(!q.prompt.trim()||q.points<=0)return false;
+ if(q.kind==='Text')return true;
+ if(q.choices.length<2||q.choices.some(c=>!c.text.trim()))return false;
+ if(q.kind==='Multiple'){const ids=q.correct.split(',').filter(Boolean);return ids.length>0&&ids.every(id=>q.choices.some(c=>c.id===id));}
+ return q.choices.some(c=>c.id===q.correct);
+}
+
 export function lessonReady(l:PublishInput['lessons'][number]){
+ if(l.kind==='Quiz')return true;
  if(l.kind==='Text')return l.body.trim().length>0;
  if(l.kind==='Link')return !!l.url&&/^https:\/\//.test(l.url);
  return !!l.assetId&&l.assetClean!==false;
@@ -115,11 +139,15 @@ export function lessonReady(l:PublishInput['lessons'][number]){
 export function publishBlockers(x:PublishInput):PublishBlocker[]{
  const out:PublishBlocker[]=[];
  if(!x.title.trim())out.push('title');
- if(!x.lessons.some(l=>l.required&&lessonReady(l)))out.push('requiredLesson');
+ if(!x.lessons.some(l=>l.required&&l.kind!=='Quiz'&&lessonReady(l)))out.push('requiredLesson');
  if(x.lessons.some(l=>!lessonReady(l)))out.push('lessonContent');
+ // Every quiz lesson needs valid questions and sane rules of its own.
+ const quizLessons=x.lessons.filter(l=>l.kind==='Quiz');
+ if(quizLessons.some(l=>{const qs=x.questions.filter(q=>q.lessonId===l.id);return !qs.length||qs.some(q=>!questionValid(q))||(l.passPercent??70)<1||(l.passPercent??70)>100||(l.maxAttempts??1)<1;}))out.push('lessonQuiz');
  if(x.quizEnabled){
-  if(!x.questions.length)out.push('quizEmpty');
-  else if(x.questions.some(q=>!q.prompt.trim()||q.points<=0||q.choices.length<2||!q.choices.some(c=>c.id===q.correct)||q.choices.some(c=>!c.text.trim())))out.push('quizInvalid');
+  const finals=x.questions.filter(q=>!q.lessonId);
+  if(!finals.length)out.push('quizEmpty');
+  else if(finals.some(q=>!questionValid(q)))out.push('quizInvalid');
   if(x.passPercent<1||x.passPercent>100||x.maxAttempts<1)out.push('quizRules');
  }
  return out;

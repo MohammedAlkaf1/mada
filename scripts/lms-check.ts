@@ -143,9 +143,11 @@ async function main() {
   await admin.waitForFunction(() => [...document.querySelectorAll('button')].some((b) => b.textContent === 'حفظ' && b.disabled), undefined, { timeout: 20000 });
   await admin.getByRole('button', { name: 'إضافة سؤال' }).click();
   const q = admin.getByRole('dialog');
-  await q.locator('select').first().selectOption('TrueFalse');
+  await q.getByRole('button', { name: /صح أو خطأ/ }).click();
   await q.locator('textarea').fill('الفحص ينجح حين تكون الإجابة صح.');
   await q.getByRole('button', { name: 'حفظ' }).click();
+  // The dialog only closes when the server accepted the question.
+  await q.waitFor({ state: 'detached', timeout: 20000 });
   await admin.getByText('الفحص ينجح حين تكون الإجابة صح.').waitFor();
   step('The admin enables the quiz and adds a true or false question');
 
@@ -286,6 +288,47 @@ async function main() {
   assert.equal((await command(admin, 'import.apply', { id: preview.body.result.id })).status, 409);
   step('Import previews without writing, applies once, and refuses to apply twice (FR-03)');
 
+  /* Quiz lessons inside modules: practice completes on submission, a written answer waits for the instructor. */
+  const showcase = await db.courseVersion.findFirstOrThrow({ where: { tenantId: tenant.id, title: 'مهارات الإشراف للقادة الجدد', status: 'Published' }, include: { lessons: true } });
+  const sEnrollment = await db.enrollment.findFirstOrThrow({ where: { versionId: showcase.id, membershipId: learnerMembership.id } });
+  const practice = showcase.lessons.find((l) => l.kind === 'Quiz' && !l.graded)!;
+  const written = showcase.lessons.find((l) => l.kind === 'Quiz' && l.graded && l.title === 'تطبيق عملي')!;
+  const video = showcase.lessons.find((l) => l.kind === 'Video')!;
+  const videoFile = await learner.request.get(`${base}/api/files?id=${video.assetId}`, { headers: { range: 'bytes=0-1023' } });
+  assert.equal(videoFile.status(), 206);
+  assert.ok((videoFile.headers()['content-type'] ?? '').startsWith('video/'));
+  step('Lesson videos are stored on the platform and stream in byte ranges to the enrolled learner');
+
+  const p1 = await command(learner, 'quiz.start', { enrollmentId: sEnrollment.id, lessonId: practice.id });
+  const pq = await db.question.findMany({ where: { lessonId: practice.id } });
+  await command(learner, 'quiz.save', { attemptId: p1.body.result.id, answers: Object.fromEntries(pq.map((x) => [x.id, x.kind === 'Multiple' ? ['c'] : x.kind === 'TrueFalse' ? 'false' : 'b'])) });
+  await command(learner, 'quiz.submit', { attemptId: p1.body.result.id });
+  assert.ok((await db.lessonProgress.findUnique({ where: { enrollmentId_lessonId: { enrollmentId: sEnrollment.id, lessonId: practice.id } } }))?.completedAt, 'a failed practice quiz should still complete its lesson');
+  step('A practice quiz completes its lesson on submission even with wrong answers');
+
+  const w1 = await command(learner, 'quiz.start', { enrollmentId: sEnrollment.id, lessonId: written.id });
+  const wq = await db.question.findMany({ where: { lessonId: written.id } });
+  const wAnswers = Object.fromEntries(wq.map((x) => [x.id, x.kind === 'Text' ? 'في وردية الخميس لاحظت أن الرف لم يُرتب قبل الذروة، وسأطلب ترتيبه قبل الرابعة.' : x.correct]));
+  await command(learner, 'quiz.save', { attemptId: w1.body.result.id, answers: wAnswers });
+  const submittedW = await command(learner, 'quiz.submit', { attemptId: w1.body.result.id });
+  assert.equal(submittedW.body.result.status, 'Review');
+  assert.equal((await command(learner, 'quiz.start', { enrollmentId: sEnrollment.id, lessonId: written.id })).body.error, 'pendingReview');
+  assert.ok(!(await db.lessonProgress.findUnique({ where: { enrollmentId_lessonId: { enrollmentId: sEnrollment.id, lessonId: written.id } } }))?.completedAt);
+  step('A written answer puts the attempt in review, blocks a new attempt and leaves the graded lesson open');
+
+  const trainer = await session(browser, 'trainer@mada.test');
+  await trainer.goto(`${base}/ar/review/${w1.body.result.id}`);
+  await trainer.getByText('في وردية الخميس لاحظت').waitFor();
+  await trainer.locator('input[type=number]').first().fill('3');
+  await trainer.getByRole('button', { name: 'اعتماد التصحيح' }).click();
+  await trainer.waitForURL(/\/ar\/review$/, { timeout: 20000 });
+  const graded = await db.quizAttempt.findUniqueOrThrow({ where: { id: w1.body.result.id } });
+  assert.equal(graded.status, 'Graded');
+  assert.equal(graded.passed, true);
+  assert.ok((await db.lessonProgress.findUnique({ where: { enrollmentId_lessonId: { enrollmentId: sEnrollment.id, lessonId: written.id } } }))?.completedAt);
+  await trainer.screenshot({ path: join(shots, 'trainer-review-queue.png') });
+  step('The instructor grades the written answer from the grading page and the lesson completes');
+
   /* NFR-04: phone width with no horizontal scroll on the learner screens. */
   const phone = await session(browser, 'trainer@mada.test', 'Demo@12345', 390);
   assert.ok(await noHorizontalScroll(phone), 'trainer home scrolls sideways');
@@ -301,6 +344,9 @@ async function main() {
 
   // Leave the demo as it was: the check's own course, its records and the second organization go.
   await cleanup(courseId, other.id);
+  await db.quizAttempt.deleteMany({ where: { enrollmentId: sEnrollment.id } });
+  await db.lessonProgress.deleteMany({ where: { enrollmentId: sEnrollment.id } });
+  await db.enrollment.update({ where: { id: sEnrollment.id }, data: { status: 'NotStarted', startedAt: null, requiredDone: 0 } });
   await browser.close();
   if (errors.length) {
     console.log('\nBrowser errors:');

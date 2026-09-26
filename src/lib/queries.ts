@@ -3,7 +3,7 @@ import {courseScope,type Actor} from './access';
 import {DomainError,isOverdue,publishBlockers,versionLocked} from './domain';
 import {billingStateFor} from './billing';
 import {closeExpiredAttempts} from './learning-commands';
-import type {AttemptState,AuditRow,CertificateRow,CourseRow,EnrollmentRow,ExportRow,GroupRow,LearnerCourse,MemberRow,ShellState,StaffDashboard,VersionState} from './types';
+import type {AttemptState,AuditRow,CertificateRow,CourseRow,EnrollmentRow,ExportRow,GroupRow,LearnerCourse,MemberRow,ReviewDetail,ReviewRow,ShellState,StaffDashboard,VersionState} from './types';
 
 /* Read models, one per screen. Each is scoped by the actor before it touches
    a table, and serialised through JSON so it can cross to the client. The
@@ -128,13 +128,17 @@ export async function learnerCourse(a:Actor,enrollmentId:string):Promise<Learner
  if(!e)throw new DomainError('notFound',404);
  const v=e.courseVersion;
  const ids=[...new Set([v.coverAssetId,...v.modules.flatMap(m=>m.lessons.map(l=>l.assetId))].filter((x):x is string=>!!x))];
- const assets=await db.asset.findMany({where:{id:{in:ids},tenantId:a.tenantId},select:{id:true,name:true,mime:true,size:true,status:true}});
+ const [assets,counts]=await Promise.all([
+  db.asset.findMany({where:{id:{in:ids},tenantId:a.tenantId},select:{id:true,name:true,mime:true,size:true,status:true}}),
+  db.question.groupBy({by:['lessonId'],where:{versionId:v.id,tenantId:a.tenantId},_count:{_all:true}}),
+ ]);
  return plain({
   enrollment:{id:e.id,status:e.status,startsAt:e.startsAt,dueAt:e.dueAt,requiredDone:e.requiredDone,requiredTotal:e.requiredTotal,quizPassed:e.quizPassed,bestScore:e.bestScore,completedAt:e.completedAt},
-  version:{id:v.id,number:v.number,title:v.title,description:v.description,coverAssetId:v.coverAssetId,estimatedMinutes:v.estimatedMinutes,quizEnabled:v.quizEnabled,passPercent:v.passPercent,maxAttempts:v.maxAttempts,timeLimitMinutes:v.timeLimitMinutes,questionCount:v._count.questions},
+  version:{id:v.id,number:v.number,title:v.title,description:v.description,coverAssetId:v.coverAssetId,estimatedMinutes:v.estimatedMinutes,quizEnabled:v.quizEnabled,passPercent:v.passPercent,maxAttempts:v.maxAttempts,timeLimitMinutes:v.timeLimitMinutes,questionCount:counts.find(c=>c.lessonId===null)?._count._all??0},
   modules:v.modules,
   progress:Object.fromEntries(e.progress.map(p=>[p.lessonId,{completedAt:p.completedAt,position:p.position,watchedSeconds:p.watchedSeconds}])),
-  attempts:e.attempts.map(x=>({id:x.id,number:x.number,startedAt:x.startedAt,deadlineAt:x.deadlineAt,submittedAt:x.submittedAt,score:x.score,passed:x.passed})),
+  attempts:e.attempts.map(x=>({id:x.id,scope:x.scope,number:x.number,status:x.status,startedAt:x.startedAt,deadlineAt:x.deadlineAt,submittedAt:x.submittedAt,score:x.score,passed:x.passed})),
+  quizQuestions:Object.fromEntries(counts.map(c=>[c.lessonId??'final',c._count._all])),
   certificate:e.certificate,
   assets:Object.fromEntries(assets.map(x=>[x.id,x])),
  });
@@ -142,17 +146,41 @@ export async function learnerCourse(a:Actor,enrollmentId:string):Promise<Learner
 
 /**
  * The attempt screen. While the attempt is open the correct answers are
- * stripped; after submission they are shown only if the learner passed or
- * has no attempts left, so a failed learner cannot harvest the key.
+ * stripped. After grading they are shown for a practice quiz, or once the
+ * learner passed or used every attempt, so a failed learner cannot harvest
+ * the key of a graded quiz. The model answer for graders is never shown.
  */
 export async function attemptView(a:Actor,attemptId:string):Promise<AttemptState>{
  await closeExpiredAttempts(a.tenantId);
- const at=await db.quizAttempt.findFirst({where:{id:attemptId,tenantId:a.tenantId,enrollment:{membershipId:a.membershipId}},include:{enrollment:{include:{courseVersion:{include:{questions:{orderBy:{position:'asc'}}}},_count:{select:{attempts:true}}}}}});
+ const at=await db.quizAttempt.findFirst({where:{id:attemptId,tenantId:a.tenantId,enrollment:{membershipId:a.membershipId}},include:{enrollment:{include:{courseVersion:{include:{questions:{orderBy:{position:'asc'}}}}}}}});
  if(!at)throw new DomainError('notFound',404);
  const v=at.enrollment.courseVersion;
- const reveal=!!at.submittedAt&&(at.passed===true||at.enrollment._count.attempts>=v.maxAttempts);
- return plain({id:at.id,number:at.number,startedAt:at.startedAt,deadlineAt:at.deadlineAt,submittedAt:at.submittedAt,serverNow:new Date(),answers:at.answers,score:at.score,passed:at.passed,earned:at.earned,total:at.total,enrollmentId:at.enrollmentId,courseTitle:v.title,passPercent:v.passPercent,
-  questions:v.questions.map(q=>({id:q.id,kind:q.kind,prompt:q.prompt,choices:q.choices,points:q.points,...(reveal?{correct:q.correct}:{})}))});
+ const lesson=at.lessonId?await db.lesson.findFirst({where:{id:at.lessonId,tenantId:a.tenantId},select:{id:true,title:true,graded:true,passPercent:true,maxAttempts:true}}):null;
+ const used=await db.quizAttempt.count({where:{enrollmentId:at.enrollmentId,scope:at.scope}});
+ const maxAttempts=lesson?.maxAttempts??v.maxAttempts;
+ const reveal=at.status==='Graded'&&(lesson?.graded===false||at.passed===true||used>=maxAttempts);
+ const questions=v.questions.filter(q=>(q.lessonId??null)===(at.lessonId??null));
+ return plain({id:at.id,number:at.number,status:at.status,startedAt:at.startedAt,deadlineAt:at.deadlineAt,submittedAt:at.submittedAt,serverNow:new Date(),answers:at.answers,score:at.score,passed:at.passed,earned:at.earned,total:at.total,enrollmentId:at.enrollmentId,courseTitle:v.title,passPercent:lesson?.passPercent??v.passPercent,
+  lesson:lesson?{id:lesson.id,title:lesson.title,graded:lesson.graded}:null,
+  review:at.status==='Graded'?at.review:{},
+  questions:questions.map(q=>({id:q.id,kind:q.kind,prompt:q.prompt,choices:q.choices,points:q.points,...(reveal&&q.kind!=='Text'?{correct:q.correct}:{})}))});
+}
+
+/** Attempts with written answers waiting: the whole workspace for an admin, their own courses for an instructor. */
+export async function reviewQueue(a:Actor):Promise<ReviewRow[]>{
+ const list=await db.quizAttempt.findMany({where:{tenantId:a.tenantId,status:'Review',...(a.role==='Instructor'?{enrollment:{courseVersion:{course:{instructorIds:{has:a.userId}}}}}:{})},include:{enrollment:{include:{membership:{include:{user:{select:{name:true,email:true}}}},courseVersion:{include:{questions:{where:{kind:'Text'},select:{lessonId:true}}}}}}},orderBy:{submittedAt:'asc'},take:500});
+ const lessons=new Map((await db.lesson.findMany({where:{id:{in:list.map(x=>x.lessonId).filter((x):x is string=>!!x)}},select:{id:true,title:true}})).map(l=>[l.id,l.title]));
+ return plain(list.map(x=>({id:x.id,learner:x.enrollment.membership.user.name,email:x.enrollment.membership.user.email,courseTitle:x.enrollment.courseVersion.title,quizTitle:x.lessonId?lessons.get(x.lessonId)??'':'',submittedAt:x.submittedAt,written:x.enrollment.courseVersion.questions.filter(q=>(q.lessonId??null)===(x.lessonId??null)).length})));
+}
+
+export async function reviewDetail(a:Actor,attemptId:string):Promise<ReviewDetail>{
+ const x=await db.quizAttempt.findFirst({where:{id:attemptId,tenantId:a.tenantId,...(a.role==='Instructor'?{enrollment:{courseVersion:{course:{instructorIds:{has:a.userId}}}}}:{})},include:{enrollment:{include:{membership:{include:{user:{select:{name:true,email:true}}}},courseVersion:{include:{questions:{orderBy:{position:'asc'}}}}}}}});
+ if(!x||x.status!=='Review')throw new DomainError('notFound',404);
+ const v=x.enrollment.courseVersion;
+ const lesson=x.lessonId?await db.lesson.findFirst({where:{id:x.lessonId},select:{title:true,passPercent:true}}):null;
+ const answers=x.answers as Record<string,string|string[]>;
+ return plain({id:x.id,learner:x.enrollment.membership.user.name,email:x.enrollment.membership.user.email,courseTitle:v.title,quizTitle:lesson?.title??'',submittedAt:x.submittedAt,passPercent:lesson?.passPercent??v.passPercent,earned:x.earned,total:x.total,
+  questions:v.questions.filter(q=>(q.lessonId??null)===(x.lessonId??null)).map(q=>({id:q.id,kind:q.kind,prompt:q.prompt,choices:q.choices,correct:q.correct,guide:q.guide,points:q.points,answer:answers[q.id]??null}))});
 }
 
 export async function certificates(a:Actor,own:boolean){

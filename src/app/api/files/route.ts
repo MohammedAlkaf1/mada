@@ -25,7 +25,7 @@ export async function PUT(req:NextRequest){
   const name=(req.nextUrl.searchParams.get('name')??'').trim().slice(0,160);
   if(!name||!req.body)throw new DomainError('invalid',422);
   const ext=name.split('.').pop()?.toLowerCase()??'';
-  const limit=ext==='mp4'?LIMITS.video:['png','jpg','jpeg','webp'].includes(ext)?LIMITS.image:LIMITS.file;
+  const limit=['mp4','webm'].includes(ext)?LIMITS.video:['png','jpg','jpeg','webp'].includes(ext)?LIMITS.image:LIMITS.file;
   const declared=Number(req.headers.get('content-length')??0);
   if(declared>limit)throw new TooLarge();
   await assertStorage(a.tenantId,declared);

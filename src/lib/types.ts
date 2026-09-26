@@ -18,9 +18,9 @@ export type ShellState={
 
 export type Choice={id:string;text:string};
 
-export type LessonState={id:string;moduleId:string;title:string;kind:'Text'|'Pdf'|'Video'|'Link';body:string;url:string|null;assetId:string|null;durationSeconds:number;required:boolean;position:number};
+export type LessonState={id:string;moduleId:string;title:string;kind:'Text'|'Pdf'|'Video'|'Link'|'Quiz';body:string;url:string|null;assetId:string|null;durationSeconds:number;required:boolean;position:number;graded:boolean;passPercent:number;maxAttempts:number;timeLimitMinutes:number|null};
 export type ModuleState={id:string;title:string;position:number;lessons:LessonState[]};
-export type QuestionState={id:string;kind:'Single'|'TrueFalse';prompt:string;choices:Choice[];correct:string;points:number;position:number};
+export type QuestionState={id:string;lessonId:string|null;kind:'Single'|'Multiple'|'TrueFalse'|'Text';prompt:string;choices:Choice[];correct:string;guide:string;points:number;position:number};
 export type AssetState={id:string;name:string;mime:string;size:number;status:string};
 
 export type VersionSummary={id:string;number:number;status:string;title:string;publishedAt:string|null;createdAt:string;enrollments:number};
@@ -40,15 +40,18 @@ export type LearnerCourse={
  version:{id:string;number:number;title:string;description:string;coverAssetId:string|null;estimatedMinutes:number;quizEnabled:boolean;passPercent:number;maxAttempts:number;timeLimitMinutes:number|null;questionCount:number};
  modules:ModuleState[];
  progress:Record<string,{completedAt:string|null;position:number;watchedSeconds:number}>;
- attempts:{id:string;number:number;startedAt:string;deadlineAt:string|null;submittedAt:string|null;score:number|null;passed:boolean|null}[];
+ attempts:{id:string;scope:string;number:number;status:string;startedAt:string;deadlineAt:string|null;submittedAt:string|null;score:number|null;passed:boolean|null}[];
+ quizQuestions:Record<string,number>;
  certificate:{id:string;serial:string;status:string}|null;
  assets:Record<string,AssetState>;
 };
 
 export type AttemptState={
- id:string;number:number;startedAt:string;deadlineAt:string|null;submittedAt:string|null;serverNow:string;
- answers:Record<string,string>;score:number|null;passed:boolean|null;earned:number;total:number;
+ id:string;number:number;status:string;startedAt:string;deadlineAt:string|null;submittedAt:string|null;serverNow:string;
+ answers:Record<string,string|string[]>;score:number|null;passed:boolean|null;earned:number;total:number;
  enrollmentId:string;courseTitle:string;passPercent:number;
+ lesson:{id:string;title:string;graded:boolean}|null;
+ review:{points?:Record<string,number>;comment?:string};
  questions:{id:string;kind:string;prompt:string;choices:Choice[];points:number;correct?:string}[];
 };
 
@@ -61,4 +64,10 @@ export type StaffDashboard={
  byCourse:{id:string;title:string;status:string;enrolled:number;started:number;completed:number;overdue:number}[];
  weeks:{start:string;end:string;completed:number;assigned:number}[];
  recent:EnrollmentRow[];
+};
+
+export type ReviewRow={id:string;learner:string;email:string;courseTitle:string;quizTitle:string;submittedAt:string;written:number};
+export type ReviewDetail={
+ id:string;learner:string;email:string;courseTitle:string;quizTitle:string;submittedAt:string;passPercent:number;earned:number;total:number;
+ questions:{id:string;kind:string;prompt:string;choices:Choice[];correct:string;guide:string;points:number;answer:string|string[]|null}[];
 };
