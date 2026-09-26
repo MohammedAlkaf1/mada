@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>دليل المستخدم · مدى · ISL</title>
+<link rel="stylesheet" href="isl.css">
+<style>
+  .toc { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5mm 10mm; margin-top: 5mm; }
+  .toc div { display: flex; justify-content: space-between; border-bottom: .6pt dotted var(--line); padding: .9mm 0; font-size: 10pt; }
+  .toc b { color: var(--slate); font-family: 'Wafeq'; font-weight: 600; margin-inline-end: 2mm; }
+  .sec { display: flex; align-items: baseline; gap: 3mm; }
+  .sec .n { font-family: 'Wafeq'; font-weight: 600; font-size: 30pt; color: var(--camel); line-height: 1; }
+  .role { display: inline-block; font-size: 8.5pt; font-weight: 600; padding: 0 2mm; border-radius: 1.2mm; background: rgba(71, 90, 125, .12); color: var(--slate); margin-inline-start: 2mm; vertical-align: middle; }
+  .side { display: grid; grid-template-columns: 1fr 88mm; gap: 7mm; align-items: start; }
+  .side.wide { grid-template-columns: 1fr 100mm; }
+  h3 + ol.steps, h3 + ul.clean { margin-top: 2mm; }
+  .blk { margin-top: 6mm; }
+</style>
+</head>
+<body>
+
+<!-- Cover -->
+<section class="page slate">
+  <div class="pattern"></div>
+  <div style="position:relative;display:flex;justify-content:space-between;align-items:center">
+    <img src="assets/isl-logo-light.png" style="height:17mm" alt="ISL">
+    <span class="small" style="color:var(--taupe)">الإصدار 1.0 · 2026</span>
+  </div>
+  <div style="position:relative;margin-top:60mm">
+    <div class="kicker" style="color:var(--camel)">مدى · منصة التدريب والتعلّم</div>
+    <h1 style="font-size:42pt;line-height:1.2">دليل المستخدم</h1>
+    <p style="font-size:13pt;line-height:1.9;color:var(--taupe);max-width:150mm;margin-top:6mm">خطوة بخطوة لمسؤول الجهة والمدرب والمتدرب: من إعداد الجهة وإضافة المستخدمين، إلى بناء الدورات والاختبارات، ومتابعة النتائج وإصدار الشهادات.</p>
+  </div>
+  <div style="position:absolute;inset-inline:18mm;bottom:34mm;display:grid;grid-template-columns:repeat(3,1fr);gap:5mm">
+    <div class="card" style="background:rgba(235,232,222,.08);border-color:rgba(235,232,222,.25)"><h3 style="color:var(--ivory)">مسؤول الجهة</h3><p style="color:var(--taupe)">الأقسام 1 إلى 9</p></div>
+    <div class="card" style="background:rgba(235,232,222,.08);border-color:rgba(235,232,222,.25)"><h3 style="color:var(--ivory)">المدرب</h3><p style="color:var(--taupe)">الأقسام 4 و5 و8 و11</p></div>
+    <div class="card" style="background:rgba(235,232,222,.08);border-color:rgba(235,232,222,.25)"><h3 style="color:var(--ivory)">المتدرب</h3><p style="color:var(--taupe)">القسمان 1 و10</p></div>
+  </div>
+  <div class="foot"><span class="rule"></span><span class="no" style="color:var(--taupe)">Intelligent Solutions Leaders</span></div>
+</section>
+
+<!-- Contents & roles -->
+<section class="page">
+  <div class="run"><b>دليل المستخدم</b><span>المحتويات</span></div>
+  <h2>المحتويات</h2>
+  <div class="toc">
+    <div><span><b>1</b>البدء والدخول</span><span>3</span></div>
+    <div><span><b>7</b>النشر والإسناد</span><span>11</span></div>
+    <div><span><b>2</b>إعداد الجهة</span><span>4</span></div>
+    <div><span><b>8</b>تصحيح الإجابات المكتوبة</span><span>12</span></div>
+    <div><span><b>3</b>المستخدمون والمجموعات</span><span>5</span></div>
+    <div><span><b>9</b>التقارير والشهادات والسجل</span><span>13</span></div>
+    <div><span><b>4</b>بناء الدورة</span><span>7</span></div>
+    <div><span><b>10</b>دليل المتدرب</span><span>14</span></div>
+    <div><span><b>5</b>الاختبارات داخل الوحدات</span><span>9</span></div>
+    <div><span><b>11</b>دليل المدرب والاشتراك</span><span>15</span></div>
+    <div><span><b>6</b>الاختبار النهائي</span><span>10</span></div>
+    <div><span><b>12</b>أسئلة شائعة</span><span>16</span></div>
+  </div>
+
+  <h2 style="margin-top:8mm">الأدوار في المنصة</h2>
+  <p class="muted">لكل مستخدم دور واحد في الجهة، ويمكن لأي دور أن يُسند إليه دورة ليتعلم فيها.</p>
+  <table class="t" style="margin-top:3mm">
+    <tr><th style="width:24%">الدور</th><th>ما يستطيع فعله</th></tr>
+    <tr><td><b>مسؤول الجهة</b></td><td>إعداد هوية الجهة، إضافة المستخدمين والمجموعات، إنشاء الدورات ونشرها وإسنادها، التصحيح، التقارير، إلغاء الشهادات، سجل الأحداث، والاشتراك.</td></tr>
+    <tr><td><b>المدرب</b></td><td>إنشاء الدورات وإعداد محتوى الدورات المسماة باسمه، تصحيح إجاباتها المكتوبة، ومتابعة متدربيها وتقاريرها. لا ينشر ولا يسند.</td></tr>
+    <tr><td><b>المتدرب</b></td><td>التعلم في الدورات المسندة إليه، أداء الاختبارات، ورؤية نتائجه وشهاداته.</td></tr>
+  </table>
+
+  <h2 style="margin-top:7mm">مصطلحات تتكرر في الدليل</h2>
+  <div class="grid2" style="margin-top:3mm">
+    <div class="card"><h3>الوحدة والدرس</h3><p>الدورة تتكون من وحدات، والوحدة تحتوي دروسًا: فيديو، نص، PDF، رابط، أو اختبار.</p></div>
+    <div class="card"><h3>الدرس الإلزامي</h3><p>وحده يدخل في نسبة الإكمال. الدرس الاختياري للاستزادة ولا يمنع الإكمال.</p></div>
+    <div class="card"><h3>النسخة</h3><p>كل دورة لها نسخة منشورة يُسند منها. حين يبدأ المتدربون تُقفل، والتعديل الجوهري يكون في نسخة جديدة.</p></div>
+    <div class="card"><h3>الإسناد</h3><p>تسجيل متدرب أو مجموعة في نسخة منشورة، مع موعد بدء واستحقاق اختياري.</p></div>
+  </div>
+  <div class="foot"><img src="assets/isl-icon.png" alt=""><span class="rule"></span><span class="no">2</span></div>
+</section>
+
+<!-- 1 Getting started -->
+<section class="page">
+  <div class="run"><b>دليل المستخدم</b><span>البدء والدخول</span></div>
+  <div class="sec"><span class="n">1</span><h2>البدء والدخول</h2></div>
+  <div class="side">
+    <div>
+      <h3>أول دخول</h3>
+      <ol class="steps">
+        <li>تصلك رسالة دعوة بالبريد من جهتك. افتح الرابط خلال <b>72 ساعة</b>، فهو صالح لمرة واحدة.</li>
+        <li>اكتب اسمك واختر كلمة مرور لا تقل عن 10 أحرف فيها حرف ورقم، ثم اضغط <span class="ui">قبول الدعوة</span>.</li>
+        <li>ادخل من صفحة تسجيل الدخول بالبريد وكلمة المرور.</li>
+      </ol>
+      <h3 class="blk">التحقق بخطوتين <span class="role">لمسؤول الجهة</span></h3>
+      <ol class="steps">
+        <li>عند أول دخول تفتح صفحة <b>حماية حسابك</b>. أدخل كلمة المرور واضغط <span class="ui">إعداد تطبيق التحقق</span>.</li>
+        <li>أضف المفتاح الظاهر في تطبيق مثل Google Authenticator أو Microsoft Authenticator.</li>
+        <li>اكتب الرمز المكون من ستة أرقام واضغط <span class="ui">تفعيل الحماية</span>. من الآن يُطلب الرمز مع كل دخول.</li>
+      </ol>
+    </div>
+    <figure><div class="shot"><img src="../data/doc-shots/login.jpg" alt=""></div><figcaption>صفحة تسجيل الدخول.</figcaption></figure>
+  </div>
+  <div class="grid3 blk">
+    <div class="card"><h3>نسيت كلمة المرور</h3><p>اضغط <b>نسيت كلمة المرور؟</b> واكتب بريدك. يصلك رابط صالح 30 دقيقة ولمرة واحدة.</p></div>
+    <div class="card"><h3>أكثر من جهة</h3><p>إن كان حسابك في أكثر من جهة، اختر الجهة من اسمها أعلى الصفحة.</p></div>
+    <div class="card"><h3>اللغة والمظهر</h3><p>أزرار أعلى الصفحة للتبديل بين العربية والإنجليزية، والوضع الفاتح والداكن.</p></div>
+  </div>
+  <div class="note terra blk">بعد خمس محاولات دخول خاطئة يُقفل الدخول 15 دقيقة. وتنتهي جلسة فريق العمل بعد 30 دقيقة دون استخدام.</div>
+  <div class="blk">
+    <h3>حسابي</h3>
+    <p class="muted">من أيقونة الشخص أسفل القائمة الجانبية: تعديل الاسم، إيقاف أو تشغيل تذكيرات البريد، وتسجيل الخروج من كل الأجهزة.</p>
+  </div>
+  <div class="foot"><img src="assets/isl-icon.png" alt=""><span class="rule"></span><span class="no">3</span></div>
+</section>
+
+<!-- 2 Organization -->
+<section class="page">
+  <div class="run"><b>دليل المستخدم</b><span>إعداد الجهة</span></div>
+  <div class="sec"><span class="n">2</span><h2>إعداد الجهة</h2><span class="role">مسؤول الجهة</span></div>
+  <p class="muted">من القائمة الجانبية <span class="ui">إعدادات الجهة</span>. ما تضبطه هنا يظهر لكل مستخدمي جهتك وعلى الشهادات.</p>
+  <figure style="margin-top:3mm"><div class="shot"><img src="../data/doc-shots/settings.jpg" style="height:92mm;object-fit:cover;object-position:top" alt=""></div><figcaption>هوية الجهة والشعار.</figcaption></figure>
+  <div class="grid2 blk">
+    <div>
+      <h3>هوية الجهة</h3>
+      <ol class="steps">
+        <li>اكتب اسم الجهة بالعربية والإنجليزية.</li>
+        <li>اختر اللون الأساسي من الألوان الجاهزة أو من منتقي الألوان. تعرض المعاينة الأزرار بلونك قبل الحفظ.</li>
+        <li>اختر المنطقة الزمنية، ثم <span class="ui">حفظ</span>.</li>
+        <li>في بطاقة <b>الشعار</b> اضغط <span class="ui">رفع ملف</span>. يُقبل PNG أو JPG أو WEBP حتى 1 ميجابايت، ويفضل مربعًا بخلفية شفافة.</li>
+      </ol>
+    </div>
+    <div>
+      <h3>وصول الدعم المؤقت</h3>
+      <p class="small">فريق المنصة لا يرى محتوى جهتك. إن احتجت مساعدة داخل حسابك اضغط <span class="ui">منح وصول مؤقت</span>، واكتب بريد مشغل المنصة وعدد الساعات والسبب. يُسجل كل ما يفعله، وينتهي الوصول تلقائيًا، ويمكنك إلغاؤه قبل ذلك.</p>
+      <h3 style="margin-top:4mm">رسائل تعذر إرسالها</h3>
+      <p class="small">إن فشل إرسال دعوة أو تذكير تظهر هنا مع السبب، ويمكنك <span class="ui">إعادة المحاولة</span> بعد معالجته.</p>
+    </div>
+  </div>
+  <div class="foot"><img src="assets/isl-icon.png" alt=""><span class="rule"></span><span class="no">4</span></div>
+</section>
+
+<!-- 3 People -->
+<section class="page">
+  <div class="run"><b>دليل المستخدم</b><span>المستخدمون والمجموعات</span></div>
+  <div class="sec"><span class="n">3</span><h2>المستخدمون والمجموعات</h2><span class="role">مسؤول الجهة</span></div>
+  <div class="side">
+    <div>
+      <h3>إضافة مستخدم</h3>
+      <ol class="steps">
+        <li>من <span class="ui">المستخدمون والمجموعات</span> اضغط <span class="ui">إضافة مستخدم</span>.</li>
+        <li>اكتب الاسم والبريد، واختر الدور: مسؤول الجهة أو مدرب أو متدرب.</li>
+        <li>اكتب اسم مجموعة إن أردت، موجودة أو جديدة.</li>
+        <li>اضغط <span class="ui">إرسال</span>. تصل الدعوة بالبريد، ويمكنك إسناد الدورات له قبل أن يدخل.</li>
+      </ol>
+      <div class="note" style="margin-top:3mm">كل مستخدم فعّال يشغل مقعدًا في باقتك. التعطيل يحرر المقعد ويبقي سجلاته.</div>
+    </div>
+    <figure><div class="shot"><img src="../data/doc-shots/invite.jpg" alt=""></div><figcaption>نافذة إضافة مستخدم.</figcaption></figure>
+  </div>
+  <div class="blk">
+    <h3>إدارة المستخدمين</h3>
+    <ul class="clean">
+      <li><b>البحث والتصفية</b> بالاسم أو البريد، وبالدور والمجموعة والحالة.</li>
+      <li><b>بانتظار التفعيل</b> تعني أن الشخص لم ينشئ كلمة المرور بعد. اضغط <span class="ui">إعادة إرسال الدعوة</span> لرابط جديد.</li>
+      <li><b>التعديل</b> من أيقونة القلم: الدور، المسمى أو القسم، والتفعيل أو التعطيل. التعطيل يوقف الدخول فورًا.</li>
+      <li>اضغط اسم أي شخص لفتح <b>تقرير الفرد</b>: دوراته وتواريخها وتقدمه ونتائجه وشهاداته.</li>
+    </ul>
+  </div>
+  <figure class="blk"><div class="shot"><img src="../data/doc-shots/people.jpg" style="height:70mm;object-fit:cover;object-position:top" alt=""></div><figcaption>قائمة المستخدمين بأدوارهم ومجموعاتهم وآخر دخول.</figcaption></figure>
+  <div class="foot"><img src="assets/isl-icon.png" alt=""><span class="rule"></span><span class="no">5</span></div>
+</section>
+
+<!-- 3b Groups & import -->
+<section class="page">
+  <div class="run"><b>دليل المستخدم</b><span>المجموعات والاستيراد</span></div>
+  <h2>المجموعات</h2>
+  <p class="muted">المجموعة طريقة لإسناد دورة لعدة أشخاص دفعة واحدة، مثل قسم أو فرع أو دفعة تدريب.</p>
+  <ol class="steps">
+    <li>من تبويب <span class="ui">المجموعات</span> اضغط <span class="ui">مجموعة جديدة</span> واكتب الاسم والوصف.</li>
+    <li>اضغط <span class="ui">إدارة الأعضاء</span>، حدد الأشخاص، ثم <span class="ui">حفظ</span>.</li>
+    <li>المجموعة التي لم تعد تحتاجها <span class="ui">أرشفة المجموعة</span> دون حذف أي سجل.</li>
+  </ol>
+  <h2 style="margin-top:9mm">الاستيراد من ملف</h2>
+  <div class="side wide">
+    <div>
+      <ol class="steps">
+        <li>من تبويب <span class="ui">الاستيراد</span> اضغط <span class="ui">تنزيل قالب</span>.</li>
+        <li>املأ الأعمدة، صفًا لكل شخص، واحفظ الملف بصيغة CSV أو XLSX.</li>
+        <li>اضغط <span class="ui">اختر الملف</span>. تظهر معاينة لكل صف دون أن يُكتب شيء.</li>
+        <li>راجع الصفوف المرفوضة وسببها، ثم اضغط <span class="ui">تنفيذ الاستيراد</span>.</li>
+      </ol>
+      <table class="t" style="margin-top:3mm">
+        <tr><th>العمود</th><th>ما يُكتب فيه</th></tr>
+        <tr><td>الاسم</td><td>الاسم الكامل، مطلوب</td></tr>
+        <tr><td>البريد</td><td>بريد صحيح، مطلوب وغير مكرر</td></tr>
+        <tr><td>المجموعة</td><td>اختياري، تُنشأ إن لم تكن موجودة</td></tr>
+        <tr><td>الدور</td><td>مسؤول أو مدرب أو متدرب، والفارغ يعني متدربًا</td></tr>
+      </table>
+    </div>
+    <figure><div class="shot"><img src="../data/doc-shots/import.jpg" style="height:70mm;object-fit:cover;object-position:top" alt=""></div><figcaption>تبويب الاستيراد.</figcaption></figure>
+  </div>
+  <div class="note blk">إعادة استيراد الملف نفسه لا تكرر أحدًا: الموجود مسبقًا يظهر «موجود مسبقًا»، ومن تغيرت مجموعته تُحدّث مجموعته فقط. الحد 3000 صف للملف.</div>
+  <div class="foot"><img src="assets/isl-icon.png" alt=""><span class="rule"></span><span class="no">6</span></div>
+</section>
+
+<!-- 4 Course -->
+<section class="page">
+  <div class="run"><b>دليل المستخدم</b><span>بناء الدورة</span></div>
+  <div class="sec"><span class="n">4</span><h2>بناء الدورة</h2><span class="role">المسؤول والمدرب</span></div>
+  <h3>إنشاء دورة</h3>
+  <ol class="steps">
+    <li>من <span class="ui">الدورات</span> اضغط <span class="ui">دورة جديدة</span>، واكتب العنوان والتصنيف ووصفًا قصيرًا، ثم <span class="ui">إنشاء</span>.</li>
+    <li>تفتح الدورة في المحرر بوحدة أولى جاهزة. التبويبات: <b>المحتوى</b>، <b>الاختبار النهائي</b>، <b>الإعدادات</b>، <b>المتدربون</b>، <b>النسخ</b>.</li>
+    <li>في <b>الإعدادات</b>: صورة الغلاف، المدة التقديرية، واختيار <b>المدربين</b> المسؤولين عن الدورة (للمسؤول فقط).</li>
+  </ol>
+  <figure class="blk"><div class="shot"><img src="../data/doc-shots/editor-draft.jpg" alt=""></div><figcaption>محرر الدورة: الوحدات والدروس، وقائمة ما قبل النشر على الجانب.</figcaption></figure>
+  <div class="grid2 blk">
+    <div>
+      <h3>الوحدات</h3>
+      <ul class="clean">
+        <li><span class="ui">إضافة وحدة</span> أسفل آخر وحدة.</li>
+        <li>أزرار الأسهم تنقل الوحدة للأعلى أو الأسفل.</li>
+        <li>القلم لتغيير اسمها، وسلة المهملات لحذفها مع دروسها.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>ترتيب الدروس</h3>
+      <ul class="clean">
+        <li>الأسهم بجانب الدرس تنقله داخل الوحدة.</li>
+        <li>عند أول الوحدة أو آخرها ينتقل الدرس إلى الوحدة المجاورة.</li>
+        <li>الشارة بجانب الدرس تبين إن كان إلزاميًا أو اختياريًا.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><img src="assets/isl-icon.png" alt=""><span class="rule"></span><span class="no">7</span></div>
+</section>
+
+<!-- 4b Lessons -->
+<section class="page">
+  <div class="run"><b>دليل المستخدم</b><span>أنواع الدروس</span></div>
+  <h2>إضافة درس</h2>
+  <div class="side">
+    <div>
+      <ol class="steps">
+        <li>في الوحدة اضغط <span class="ui">إضافة درس</span>.</li>
+        <li>اكتب عنوان الدرس واختر نوع المحتوى.</li>
+        <li>أضف المحتوى حسب النوع كما في الجدول أدناه.</li>
+        <li>اترك <b>درس إلزامي</b> محددًا إن كان يدخل في الإكمال، ثم <span class="ui">حفظ</span>.</li>
+      </ol>
+      <div class="note" style="margin-top:3mm">الفيديو يُرفع إلى المنصة ويُشغّل داخلها، فلا يحتاج المتدرب يوتيوب أو أي رابط خارجي.</div>
+    </div>
+    <figure><div class="shot"><img src="../data/doc-shots/lesson-video.jpg" alt=""></div><figcaption>درس فيديو بعد رفع الملف.</figcaption></figure>
+  </div>
+  <table class="t blk">
+    <tr><th style="width:18%">النوع</th><th style="width:40%">ما تضيفه</th><th>متى يكتمل للمتدرب</th></tr>
+    <tr><td><b>فيديو</b></td><td>ملف MP4 أو WebM حتى 1 جيجابايت. تُقرأ المدة تلقائيًا، ويمكن اختيار ملف سبق رفعه من <b>مكتبة الملفات</b>.</td><td>بعد مشاهدة 90% من مدته فعليًا. التقديم السريع لا يُحتسب.</td></tr>
+    <tr><td><b>نص</b></td><td>نص الدرس بفقراته وأسطره.</td><td>حين يضغط <span class="ui">أنهيت هذا الدرس</span>.</td></tr>
+    <tr><td><b>ملف PDF</b></td><td>ملف حتى 100 ميجابايت، يُعرض داخل الدرس.</td><td>حين يضغط <span class="ui">أنهيت هذا الدرس</span>.</td></tr>
+    <tr><td><b>رابط خارجي</b></td><td>رابط يبدأ بـ https مع وصف قصير.</td><td>حين يضغط <span class="ui">أنهيت هذا الدرس</span> بعد فتحه.</td></tr>
+    <tr><td><b>اختبار</b></td><td>إعدادات الاختبار، ثم أسئلته من زر <span class="ui">الأسئلة</span>. انظر القسم 5.</td><td>المحتسب باجتيازه، والتدريبي بتسليمه.</td></tr>
+  </table>
+  <div class="grid2 blk">
+    <div class="card"><h3>فحص الملفات</h3><p>كل ملف يُفحص نوعه ومحتواه. الملف قيد الفحص تظهر بجانبه شارة، ولا تُنشر الدورة حتى يجتاز الفحص.</p></div>
+    <div class="card"><h3>مكتبة الملفات</h3><p>من القائمة الجانبية <span class="ui">مكتبة الملفات</span> ترى كل ما رُفع لجهتك وحالته، ويمكنك رفع ملفات مسبقًا.</p></div>
+  </div>
+  <div class="foot"><img src="assets/isl-icon.png" alt=""><span class="rule"></span><span class="no">8</span></div>
+</section>
+
+<!-- 5 Lesson quizzes -->
+<section class="page">
+  <div class="run"><b>دليل المستخدم</b><span>الاختبارات داخل الوحدات</span></div>
+  <div class="sec"><span class="n">5</span><h2>الاختبارات داخل الوحدات</h2></div>
+  <div class="side">
+    <div>
+      <h3>إنشاء اختبار</h3>
+      <ol class="steps">
+        <li><span class="ui">إضافة درس</span> واختر النوع <b>اختبار</b>.</li>
+        <li>اختر <b>اختبار محتسب</b> أو <b>اختبار تدريبي</b>.</li>
+        <li>حدد درجة النجاح وعدد المحاولات، ومدة المحاولة إن أردتها، ثم <span class="ui">حفظ</span>.</li>
+        <li>اضغط <span class="ui">الأسئلة</span> بجانب الاختبار، ثم <span class="ui">إضافة سؤال</span>.</li>
+      </ol>
+    </div>
+    <figure><div class="shot"><img src="../data/doc-shots/lesson-quiz.jpg" style="max-height:88mm;object-fit:cover;object-position:top" alt=""></div><figcaption>إعدادات اختبار داخل الوحدة.</figcaption></figure>
+  </div>
+  <div class="grid2 blk">
+    <div class="card slate"><h3>اختبار محتسب</h3><p>له درجة نجاح، ويجب اجتيازه لإكمال الدرس. يُحفظ في التقارير. لا يُعاد بعد اجتيازه.</p></div>
+    <div class="card"><h3>اختبار تدريبي</h3><p>للتقييم الذاتي. يكتمل الدرس بتسليمه مهما كانت النتيجة، وتظهر الإجابات الصحيحة بعده مباشرة.</p></div>
+  </div>
+  <h3 class="blk">أنواع الأسئلة</h3>
+  <div class="side">
+    <table class="t">
+      <tr><th>النوع</th><th>كيف تضيفه</th></tr>
+      <tr><td><b>اختيار إجابة واحدة</b></td><td>اكتب الخيارات وحدد الصحيح منها.</td></tr>
+      <tr><td><b>اختيار أكثر من إجابة</b></td><td>حدد كل الصحيحة. تُحتسب الدرجة فقط إن اختارها المتدرب كلها ولم يختر غيرها.</td></tr>
+      <tr><td><b>صح أو خطأ</b></td><td>حدد الإجابة الصحيحة.</td></tr>
+      <tr><td><b>إجابة مكتوبة</b></td><td>اكتب إجابة نموذجية للمصحح. يصححها المدرب (القسم 8).</td></tr>
+    </table>
+    <figure><div class="shot"><img src="../data/doc-shots/question-multiple.jpg" style="max-height:80mm;object-fit:cover;object-position:top" alt=""></div><figcaption>سؤال متعدد الإجابات.</figcaption></figure>
+  </div>
+  <div class="foot"><img src="assets/isl-icon.png" alt=""><span class="rule"></span><span class="no">9</span></div>
+</section>
+
+<!-- 6 Final exam -->
+<section class="page">
+  <div class="run"><b>دليل المستخدم</b><span>الاختبار النهائي</span></div>
+  <div class="sec"><span class="n">6</span><h2>الاختبار النهائي</h2></div>
+  <p class="muted">اختبار في نهاية الدورة يُفتح للمتدرب بعد إكمال الدروس الإلزامية. تكتمل الدورة بإكمال الدروس واجتياز هذا الاختبار، وتُعتمد أعلى نتيجة.</p>
+  <ol class="steps" style="margin-top:3mm">
+    <li>افتح تبويب <span class="ui">الاختبار النهائي</span> وحدد <b>تتضمن الدورة اختبارًا نهائيًا</b>.</li>
+    <li>حدد درجة النجاح وعدد المحاولات ومدة المحاولة بالدقائق، ثم <span class="ui">حفظ</span>.</li>
+    <li>أضف الأسئلة بالطريقة نفسها في القسم 5، ورتبها بالأسهم.</li>
+  </ol>
+  <figure class="blk"><div class="shot"><img src="../data/doc-shots/final-exam.jpg" alt=""></div><figcaption>تبويب الاختبار النهائي: القواعد على الجانب والأسئلة بأنواعها.</figcaption></figure>
+  <div class="grid3 blk">
+    <div class="card"><div class="ic"><i data-i="clock"></i></div><h3>المؤقت</h3><p>يبدأ مع المحاولة على ساعة الخادم، ولا يتوقف بإغلاق الصفحة. عند انتهائه تُسلّم الإجابات المحفوظة.</p></div>
+    <div class="card"><div class="ic"><i data-i="lock"></i></div><h3>مفتاح الإجابات</h3><p>لا يصل لجهاز المتدرب أثناء المحاولة، ويظهر له بعد اجتيازه أو استنفاد محاولاته.</p></div>
+    <div class="card"><div class="ic"><i data-i="pen"></i></div><h3>إجابة مكتوبة</h3><p>إن كان في الاختبار سؤال مكتوب، تنتظر النتيجة تصحيح المدرب قبل أن تُعتمد.</p></div>
+  </div>
+  <div class="foot"><img src="assets/isl-icon.png" alt=""><span class="rule"></span><span class="no">10</span></div>
+</section>
+
+<!-- 7 Publish & assign -->
+<section class="page">
+  <div class="run"><b>دليل المستخدم</b><span>النشر والإسناد</span></div>
+  <div class="sec"><span class="n">7</span><h2>النشر والإسناد</h2><span class="role">مسؤول الجهة</span></div>
+  <div class="grid2">
+    <div>
+      <h3>النشر</h3>
+      <ol class="steps">
+        <li>راجع <b>قبل النشر</b> على جانب المحرر. كل بند ناقص يمنع النشر.</li>
+        <li>اضغط <span class="ui">نشر النسخة</span>. تصبح النسخة قابلة للإسناد.</li>
+      </ol>
+      <p class="small muted">المدرب يجهز المحتوى، والنشر من صلاحية مسؤول الجهة.</p>
+    </div>
+    <div>
+      <h3>التعديل بعد النشر</h3>
+      <ul class="clean">
+        <li>قبل أن يبدأ أحد يمكنك تعديل النسخة المنشورة.</li>
+        <li>بعد أن يسجل متدربون تُقفل الدروس والقواعد، ويبقى تعديل العنوان والوصف.</li>
+        <li>للتغيير الجوهري اضغط <span class="ui">إنشاء نسخة جديدة</span>، ثم انشرها. يبقى المسجلون على نسختهم.</li>
+      </ul>
+    </div>
+  </div>
+  <h3 class="blk">إسناد الدورة</h3>
+  <div class="side">
+    <ol class="steps">
+      <li>من صفحة الدورة اضغط <span class="ui">إسناد</span>.</li>
+      <li>اختر <b>إلى مجموعة</b> أو <b>إلى أفراد</b>. في المجموعة يظهر عدد من سيُسجل.</li>
+      <li>حدد تاريخ البدء، وموعد الاستحقاق إن أردت.</li>
+      <li>اضغط <span class="ui">إسناد</span>. يصل كل متدرب إشعار وبريد.</li>
+    </ol>
+    <figure><div class="shot"><img src="../data/doc-shots/assign.jpg" alt=""></div><figcaption>نافذة الإسناد.</figcaption></figure>
+  </div>
+  <div class="note blk">من ينضم لمجموعة بعد الإسناد يحتاج إسنادًا جديدًا. وإعادة إسناد الشخص نفسه لا تنشئ تسجيلًا مكررًا.</div>
+  <h3 class="blk">متابعة المتدربين</h3>
+  <p class="small">تبويب <span class="ui">المتدربون</span> يعرض حالة كل متدرب وتقدمه وموعده ونتيجته. منه <span class="ui">تعديل الموعد</span> أو <span class="ui">سحب الدورة</span>: من لم يبدأ تُلغى عنه، ومن بدأ تبقى نتائجه ويُسجل منسحبًا.</p>
+  <div class="foot"><img src="assets/isl-icon.png" alt=""><span class="rule"></span><span class="no">11</span></div>
+</section>
+
+<!-- 8 Grading -->
+<section class="page">
+  <div class="run"><b>دليل المستخدم</b><span>التصحيح</span></div>
+  <div class="sec"><span class="n">8</span><h2>تصحيح الإجابات المكتوبة</h2><span class="role">المسؤول والمدرب</span></div>
+  <p class="muted">حين يسلّم متدرب اختبارًا فيه إجابة مكتوبة، يصل إشعار للمسؤول ولمدربي الدورة، وتظهر المحاولة في صفحة <span class="ui">التصحيح</span>.</p>
+  <figure style="margin-top:3mm"><div class="shot"><img src="../data/doc-shots/review.jpg" style="height:62mm;object-fit:cover;object-position:top" alt=""></div><figcaption>قائمة الإجابات التي تنتظر التصحيح.</figcaption></figure>
+  <div class="side blk">
+    <div>
+      <ol class="steps">
+        <li>اضغط <span class="ui">تصحيح</span> بجانب المحاولة.</li>
+        <li>الأسئلة الآلية مصححة ومعروضة للاطلاع، مع مجموع درجاتها.</li>
+        <li>لكل إجابة مكتوبة: اقرأها بجانب <b>الإجابة النموذجية</b>، واكتب الدرجة الممنوحة.</li>
+        <li>اكتب ملاحظة للمتدرب إن أردت، ثم <span class="ui">اعتماد التصحيح</span>.</li>
+      </ol>
+      <div class="note" style="margin-top:3mm">بعد الاعتماد تُحسب النتيجة النهائية، ويكتمل الدرس أو الدورة إن تحقق النجاح، ويصل المتدرب إشعار بنتيجته وملاحظتك.</div>
+    </div>
+    <figure><div class="shot"><img src="../data/doc-shots/review-written.jpg" alt=""></div><figcaption>تصحيح إجابة مكتوبة.</figcaption></figure>
+  </div>
+  <div class="foot"><img src="assets/isl-icon.png" alt=""><span class="rule"></span><span class="no">12</span></div>
+</section>
+
+<!-- 9 Reports -->
+<section class="page">
+  <div class="run"><b>دليل المستخدم</b><span>التقارير والشهادات</span></div>
+  <div class="sec"><span class="n">9</span><h2>التقارير والشهادات والسجل</h2></div>
+  <figure><div class="shot"><img src="../data/doc-shots/reports.jpg" style="height:70mm;object-fit:cover;object-position:top" alt=""></div><figcaption>صفحة التقارير.</figcaption></figure>
+  <div class="grid2 blk">
+    <div>
+      <h3>التقارير</h3>
+      <ul class="clean">
+        <li>صفّ حسب الدورة والنسخة والمجموعة والحالة وتاريخ الإسناد، أو <b>المتأخرون فقط</b>.</li>
+        <li>الأرقام أعلى الجدول تتبع التصفية نفسها.</li>
+        <li><span class="ui">تصدير CSV</span> للتسجيلات، و<span class="ui">تصدير الشهادات</span> و<span class="ui">تصدير المستخدمين</span>. الرابط صالح ساعة.</li>
+        <li><b>حزمة بيانات الجهة الكاملة</b>: ملف مضغوط بكل البيانات ومحتوى الدورات، صالح 24 ساعة.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>الشهادات</h3>
+      <ul class="clean">
+        <li>تصدر تلقائيًا عند الإكمال، ولا يتغير رقمها بإعادة التنزيل.</li>
+        <li>من <span class="ui">الشهادات</span>: تنزيل PDF، فتح صفحة التحقق، أو نسخ رابطها.</li>
+        <li><span class="ui">إلغاء الشهادة</span> مع ذكر السبب يجعلها ملغاة فورًا في صفحة التحقق.</li>
+      </ul>
+      <h3 style="margin-top:4mm">سجل الأحداث</h3>
+      <p class="small">من القائمة الجانبية: كل عملية مهمة ومن نفذها ومتى. للقراءة فقط.</p>
+    </div>
+  </div>
+  <figure class="blk"><div class="shot"><img src="../data/doc-shots/certificates.jpg" style="height:58mm;object-fit:cover;object-position:top" alt=""></div><figcaption>قائمة الشهادات مع التنزيل والتحقق والإلغاء.</figcaption></figure>
+  <div class="foot"><img src="assets/isl-icon.png" alt=""><span class="rule"></span><span class="no">13</span></div>
+</section>
+
+<!-- 10 Learner -->
+<section class="page">
+  <div class="run"><b>دليل المستخدم</b><span>دليل المتدرب</span></div>
+  <div class="sec"><span class="n">10</span><h2>دليل المتدرب</h2><span class="role">المتدرب</span></div>
+  <div class="side">
+    <div>
+      <h3>دوراتي</h3>
+      <p class="small">في الصفحة الرئيسية دوراتك مرتبة حسب الموعد، مع نسبة التقدم وعدد الأيام المتبقية. اضغط <span class="ui">ابدأ الدورة</span> أو <span class="ui">متابعة</span>.</p>
+      <h3 style="margin-top:4mm">داخل الدورة</h3>
+      <ul class="clean">
+        <li>الفهرس على الجانب: الوحدات ودروسها وعلامة على كل درس مكتمل.</li>
+        <li><b>الفيديو</b>: شاهده داخل الصفحة. يكتمل بعد مشاهدة 90% منه، ويكمل من حيث توقفت.</li>
+        <li><b>النص والملف والرابط</b>: بعد الاطلاع اضغط <span class="ui">أنهيت هذا الدرس</span>.</li>
+        <li>أزرار <span class="ui">الدرس التالي</span> و<span class="ui">الدرس السابق</span> أسفل كل درس.</li>
+      </ul>
+    </div>
+    <figure><div class="shot"><img src="../data/doc-shots/player-video.jpg" alt=""></div><figcaption>درس فيديو والفهرس بجانبه.</figcaption></figure>
+  </div>
+  <div class="side blk">
+    <div>
+      <h3>الاختبارات</h3>
+      <ol class="steps">
+        <li>في درس الاختبار اضغط <span class="ui">ابدأ الاختبار</span>. تظهر درجة النجاح وعدد المحاولات والمدة إن وجدت.</li>
+        <li>تُحفظ إجاباتك تلقائيًا مع كل اختيار. إن انقطع الاتصال تُحفظ حين يعود.</li>
+        <li>اضغط <span class="ui">تسليم الاختبار</span>. تظهر النتيجة فورًا، أو <b>بانتظار تصحيح المدرب</b> إن كان فيه سؤال مكتوب.</li>
+      </ol>
+      <h3 style="margin-top:4mm">شهاداتي</h3>
+      <p class="small">حين تكمل الدورة تظهر شهادتك في <span class="ui">شهاداتي</span>: <span class="ui">تنزيل PDF</span> أو <span class="ui">نسخ رابط التحقق</span> لإرساله لأي جهة.</p>
+    </div>
+    <figure><div class="shot"><img src="../data/doc-shots/quiz.jpg" style="height:92mm;object-fit:cover;object-position:top" alt=""></div><figcaption>صفحة الاختبار.</figcaption></figure>
+  </div>
+  <div class="foot"><img src="assets/isl-icon.png" alt=""><span class="rule"></span><span class="no">14</span></div>
+</section>
+
+<!-- 11 Instructor & billing -->
+<section class="page">
+  <div class="run"><b>دليل المستخدم</b><span>المدرب والاشتراك</span></div>
+  <div class="sec"><span class="n">11</span><h2>دليل المدرب</h2><span class="role">المدرب</span></div>
+  <div class="grid2" style="margin-top:3mm">
+    <div class="card"><h3>ما تراه</h3><p>الدورات التي أنشأتها أو سماك المسؤول مدربًا عليها، ومتدربيها، وتقاريرها، وشهاداتها.</p></div>
+    <div class="card"><h3>ما تفعله</h3><p>إعداد المحتوى والاختبارات (الأقسام 4 إلى 6)، وتصحيح الإجابات المكتوبة (القسم 8).</p></div>
+    <div class="card"><h3>ما يفعله المسؤول</h3><p>النشر والإسناد وإدارة المستخدمين والمجموعات وإلغاء الشهادات.</p></div>
+    <div class="card"><h3>حين تنتهي من الإعداد</h3><p>راجع قائمة ما قبل النشر حتى تكتمل، ثم أبلغ مسؤول الجهة لينشر الدورة ويسندها.</p></div>
+  </div>
+
+  <div class="sec" style="margin-top:12mm"><span class="n">+</span><h2>الاشتراك والفوترة</h2><span class="role">مسؤول الجهة</span></div>
+  <div class="side">
+    <div>
+      <ul class="clean">
+        <li>من <span class="ui">الاشتراك والفوترة</span> ترى باقتك واستهلاكك: الدورات والمقاعد والتخزين.</li>
+        <li><span class="ui">تغيير الباقة</span>: الترقية فورية بفاتورة، والتخفيض عند التجديد، ولا يُسمح إن تجاوز استهلاكك حدود الباقة الأصغر.</li>
+        <li>زر <span class="ui">سداد</span> للدفع بمدى أو فيزا أو ماستركارد أو آبل باي، أو التحويل البنكي برقم مرجعي.</li>
+        <li>فاتورة ضريبية PDF لكل فاتورة.</li>
+        <li>بلوغ حد الباقة يمنع الإضافة فقط، ولا يحذف شيئًا من بياناتك.</li>
+      </ul>
+    </div>
+    <figure><div class="shot"><img src="../data/doc-shots/billing.jpg" style="height:82mm;object-fit:cover;object-position:top" alt=""></div><figcaption>صفحة الاشتراك والفوترة.</figcaption></figure>
+  </div>
+  <div class="foot"><img src="assets/isl-icon.png" alt=""><span class="rule"></span><span class="no">15</span></div>
+</section>
+
+<!-- 12 FAQ -->
+<section class="page">
+  <div class="run"><b>دليل المستخدم</b><span>أسئلة شائعة</span></div>
+  <div class="sec"><span class="n">12</span><h2>أسئلة شائعة وحل المشكلات</h2></div>
+  <table class="t" style="margin-top:4mm">
+    <tr><th style="width:38%">المشكلة</th><th>الحل</th></tr>
+    <tr><td>زر <b>نشر النسخة</b> غير مفعّل</td><td>بند من قائمة <b>قبل النشر</b> ناقص: درس إلزامي بلا محتوى، ملف قيد الفحص، اختبار بلا أسئلة، أو سؤال بلا إجابة صحيحة.</td></tr>
+    <tr><td>لا أستطيع تعديل دروس دورة منشورة</td><td>النسخة مقفلة لأن متدربين سجلوا فيها. اضغط <b>إنشاء نسخة جديدة</b> وعدّل فيها ثم انشرها.</td></tr>
+    <tr><td>درس الفيديو لم يكتمل رغم الوصول لنهايته</td><td>يُحتسب الإكمال بالمشاهدة الفعلية لـ 90% من المدة. التقديم السريع لا يُحتسب، أكمل مشاهدة الأجزاء التي تخطيتها.</td></tr>
+    <tr><td>الاختبار النهائي مقفل</td><td>يُفتح بعد إكمال كل الدروس الإلزامية، ومنها الاختبارات المحتسبة داخل الوحدات.</td></tr>
+    <tr><td>لا أستطيع بدء محاولة جديدة</td><td>إما أن محاولتك السابقة عند المدرب للتصحيح، أو استنفدت عدد المحاولات، أو اجتزت الاختبار المحتسب.</td></tr>
+    <tr><td>لم تصل رسالة الدعوة</td><td>تحقق من البريد غير المرغوب، ثم اطلب من المسؤول <b>إعادة إرسال الدعوة</b>. الرابط صالح 72 ساعة.</td></tr>
+    <tr><td>شخص انضم لمجموعة ولم تظهر له الدورة</td><td>الإسناد للمجموعة يشمل أعضاءها وقت الإسناد. أسند الدورة له من جديد.</td></tr>
+    <tr><td>رسالة «بلغت حد باقتك»</td><td>عطّل مستخدمين غير نشطين لتحرير مقاعد، أو احذف ملفات غير مستخدمة، أو رقِّ الباقة. لا يُحذف شيء تلقائيًا.</td></tr>
+    <tr><td>الملف مرفوض عند الرفع</td><td>الأنواع المقبولة: PDF، وMP4 وWebM للفيديو، وPNG وJPG وWEBP للصور. يجب أن يطابق امتداد الملف محتواه.</td></tr>
+    <tr><td>انتهت جلستي فجأة</td><td>جلسة فريق العمل تنتهي بعد 30 دقيقة دون استخدام حفاظًا على الأمان. سجّل الدخول من جديد.</td></tr>
+  </table>
+  <div class="card slate" style="margin-top:10mm;padding:7mm 9mm">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8mm">
+      <div>
+        <h3 style="color:var(--ivory);font-size:14pt">تحتاج مساعدة؟</h3>
+        <p style="color:var(--taupe)">تواصل مع مسؤول جهتك أولًا، ويمكنه منح فريق الدعم وصولًا مؤقتًا من إعدادات الجهة.</p>
+        <p style="color:var(--ivory);margin-top:2mm" dir="ltr">isleaders.sa · hello@isleaders.sa</p>
+      </div>
+      <img src="assets/isl-logo-light.png" style="height:17mm;flex-shrink:0" alt="ISL">
+    </div>
+  </div>
+  <div class="foot"><img src="assets/isl-icon.png" alt=""><span class="rule"></span><span class="no">16</span></div>
+</section>
+
+</body>
+</html>

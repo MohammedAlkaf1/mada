@@ -1,0 +1,90 @@
+/* ISL document system, from the ISL Brand Guidelines 2025.
+   Primary: Slate Blue #475A7D, Ivory White #EBE8DE, Navy #161819.
+   Secondary: Camel #D09563, Terra #A35039, Taupe #C9C1B2.
+   Weight: 70% primary, 25% secondary, 5% accent.
+   Titles: Wafeq. Body: Vazirmatn. Outline icons only. */
+
+@font-face { font-family: 'Wafeq'; src: url('assets/fonts/alfont_com_Wafeq-Light.woff') format('woff'); font-weight: 300; }
+@font-face { font-family: 'Wafeq'; src: url('assets/fonts/alfont_com_Wafeq-Medium.woff') format('woff'); font-weight: 500; }
+@font-face { font-family: 'Wafeq'; src: url('assets/fonts/alfont_com_Wafeq-SemiBold.woff') format('woff'); font-weight: 600; }
+@font-face { font-family: 'Vazirmatn'; src: url('assets/fonts/Vazirmatn-Regular.woff2') format('woff2'); font-weight: 400; }
+@font-face { font-family: 'Vazirmatn'; src: url('assets/fonts/Vazirmatn-Medium.woff') format('woff'); font-weight: 500; }
+@font-face { font-family: 'Vazirmatn'; src: url('assets/fonts/Vazirmatn-SemiBold.woff2') format('woff2'); font-weight: 600; }
+@font-face { font-family: 'Vazirmatn'; src: url('assets/fonts/Vazirmatn-Bold.woff2') format('woff2'); font-weight: 700; }
+
+:root {
+  --slate: #475A7D; --slate-deep: #36465f; --ivory: #EBE8DE; --paper: #F4F2EC; --navy: #161819;
+  --camel: #D09563; --terra: #A35039; --taupe: #C9C1B2; --muted: #5d6573; --line: rgba(71, 90, 125, .22);
+}
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font-family: 'Vazirmatn', Tahoma, sans-serif; color: var(--navy); font-size: 10.6pt; line-height: 1.85; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: #888; }
+
+.page { position: relative; width: 210mm; height: 297mm; overflow: hidden; background: var(--ivory); padding: 22mm 18mm 26mm; page-break-after: always; margin: 0 auto 8mm; }
+.page:last-child { page-break-after: auto; }
+
+/* Running header and the guideline footer: a small icon and a long slate line. */
+.run { position: absolute; top: 10mm; inset-inline: 18mm; display: flex; justify-content: space-between; font-size: 8.5pt; color: var(--slate); letter-spacing: .01em; }
+.run b { font-family: 'Wafeq'; font-weight: 500; }
+.foot { position: absolute; bottom: 10mm; inset-inline: 18mm; display: flex; align-items: center; gap: 5mm; }
+.foot img { height: 7mm; }
+.foot .rule { flex: 1; height: 1.2pt; background: var(--slate); }
+.foot .no { font-size: 8.5pt; color: var(--slate); min-width: 8mm; text-align: end; }
+
+h1, h2, h3, .display { font-family: 'Wafeq', 'Vazirmatn', sans-serif; font-weight: 600; color: var(--slate); margin: 0; line-height: 1.35; }
+h1 { font-size: 26pt; }
+h2 { font-size: 19pt; margin-bottom: 3mm; }
+h3 { font-size: 12.5pt; color: var(--navy); margin: 0 0 1.2mm; }
+p { margin: 0 0 3mm; }
+.lead { font-size: 12pt; color: var(--muted); line-height: 1.9; }
+.kicker { font-size: 9pt; color: var(--terra); font-weight: 600; letter-spacing: .02em; margin-bottom: 1.5mm; }
+.muted { color: var(--muted); }
+.small { font-size: 9pt; }
+
+/* Screenshots in a quiet frame, with a caption. */
+figure { margin: 0; }
+.shot { border-radius: 3mm; overflow: hidden; border: .8pt solid var(--line); background: #fff; box-shadow: 0 2mm 6mm rgba(22, 24, 25, .08); }
+.shot img { display: block; width: 100%; }
+figcaption { font-size: 8.5pt; color: var(--muted); margin-top: 1.8mm; }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; }
+.stack > * + * { margin-top: 5mm; }
+
+.card { background: var(--paper); border: .8pt solid var(--line); border-radius: 3mm; padding: 4.5mm 5mm; }
+.card h3 { font-size: 11.5pt; }
+.card p { font-size: 9.6pt; line-height: 1.75; margin: 0; color: #2b2f36; }
+.card.slate { background: var(--slate); border-color: var(--slate); }
+.card.slate h3, .card.slate p { color: var(--ivory); }
+
+/* Outline icons, 1.6 stroke, per the guideline. */
+.ic { width: 9mm; height: 9mm; border-radius: 2.5mm; border: 1pt solid var(--slate); display: inline-flex; align-items: center; justify-content: center; margin-bottom: 2.5mm; }
+.ic svg { width: 5mm; height: 5mm; stroke: var(--slate); fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+
+ul.clean { list-style: none; margin: 0; padding: 0; }
+ul.clean li { position: relative; padding-inline-start: 5mm; margin-bottom: 1.6mm; }
+ul.clean li::before { content: ''; position: absolute; inset-inline-start: 0; top: 2.6mm; width: 1.8mm; height: 1.8mm; border-radius: 50%; background: var(--camel); }
+
+/* Numbered steps. */
+ol.steps { list-style: none; margin: 0; padding: 0; counter-reset: s; }
+ol.steps > li { counter-increment: s; position: relative; padding-inline-start: 11mm; margin-bottom: 3.2mm; min-height: 7mm; }
+ol.steps > li::before { content: counter(s); position: absolute; inset-inline-start: 0; top: .4mm; width: 7mm; height: 7mm; border-radius: 50%; border: 1pt solid var(--slate); color: var(--slate); font-family: 'Wafeq'; font-weight: 600; font-size: 10pt; display: flex; align-items: center; justify-content: center; line-height: 1; }
+ol.steps b { color: var(--navy); }
+
+.note { border-inline-start: 1.6mm solid var(--camel); background: rgba(208, 149, 99, .12); padding: 3mm 4mm; border-radius: 1.5mm; font-size: 9.4pt; line-height: 1.75; }
+.note.terra { border-color: var(--terra); background: rgba(163, 80, 57, .08); }
+.ui { display: inline-block; padding: 0 1.8mm; border: .7pt solid var(--line); border-radius: 1.2mm; background: #fff; font-size: 9pt; font-weight: 600; color: var(--slate); line-height: 1.6; }
+
+table.t { width: 100%; border-collapse: collapse; font-size: 9.4pt; }
+table.t th { text-align: start; background: var(--slate); color: var(--ivory); font-weight: 600; padding: 2.2mm 3mm; }
+table.t td { padding: 2.2mm 3mm; border-bottom: .6pt solid var(--line); vertical-align: top; }
+table.t tr:nth-child(even) td { background: rgba(255, 255, 255, .45); }
+
+/* The repeated monogram is approved for secondary applications. */
+.pattern { position: absolute; inset: 0; background-image: url('assets/isl-icon.png'); background-size: 11mm; background-repeat: space; opacity: .06; pointer-events: none; }
+.page.slate { background: var(--slate); color: var(--ivory); }
+.page.slate h1, .page.slate h2, .page.slate h3 { color: var(--ivory); }
+.page.slate .run, .page.slate .foot .no { color: var(--ivory); }
+.page.slate .foot .rule { background: var(--ivory); }
+.page.slate .pattern { background: var(--ivory); -webkit-mask-image: url('assets/isl-icon.png'); -webkit-mask-size: 11mm; -webkit-mask-repeat: space; opacity: .07; }
