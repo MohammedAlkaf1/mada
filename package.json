@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1 --port 3100",
     "build": "next build",
+    "postinstall": "prisma generate",
     "start": "next start --hostname 127.0.0.1 --port 3100",
     "db:start": "node scripts/database.mjs",
     "db:push": "prisma db push",
