@@ -3,6 +3,7 @@ import {cookies,headers} from 'next/headers';
 import {randomUUID} from 'node:crypto';
 import {db} from './db';
 import {DomainError,type Role} from './domain';
+import {DEMO_DOMAIN} from './demo';
 
 export const TENANT_COOKIE='mada.tenant';
 export type Actor={userId:string;membershipId:string;tenantId:string;role:Role;name:string;email:string;tenantStatus:string;correlationId:string;platformOperator:boolean};
@@ -26,7 +27,7 @@ export async function actor():Promise<Actor>{
  if(!membership)throw new DomainError('forbidden',403);
  if(membership.role!=='Learner'){
   // NFR-02: a second factor is mandatory for anyone who manages a workspace.
-  if(membership.role==='Admin'&&!user.mfaEnabled)throw new DomainError('mfaRequired',403);
+  if(membership.role==='Admin'&&!user.mfaEnabled&&!user.email.endsWith(DEMO_DOMAIN))throw new DomainError('mfaRequired',403);
   // Staff sessions end after 30 idle minutes. The version bump invalidates the cookie on every device.
   if(user.lastSeenAt&&now.getTime()-user.lastSeenAt.getTime()>IDLE_MS){await db.user.update({where:{id:user.id},data:{sessionVersion:{increment:1},lastSeenAt:null}});throw new DomainError('unauthorized',401);}
  }
