@@ -15,6 +15,7 @@ import {unseal,verifyOtp} from '@/lib/totp';
  */
 export const {handlers,auth,signIn,signOut}=NextAuth({
  trustHost:true,
+ debug:process.env.AUTH_DEBUG==='1',
  session:{strategy:'jwt',maxAge:43200},
  providers:[
  Credentials({id:'sso',name:'sso',credentials:{ticket:{}},async authorize(c){
@@ -40,7 +41,14 @@ export const {handlers,auth,signIn,signOut}=NextAuth({
   if(!user||!user.active||!user.verified||!await compare(password,user.password)){
    await db.authAttempt.upsert({where:{key},create:{key,count:1,resetAt:new Date(Date.now()+900000)},update:attempt&&attempt.resetAt>now?{count:{increment:1}}:{count:1,resetAt:new Date(Date.now()+900000)}});return null;
   }
-  if(user.mfaEnabled){const step=user.mfaSecret?verifyOtp(unseal(user.mfaSecret),String(c.code??''),user.mfaLastStep):null;if(!step){await db.authAttempt.upsert({where:{key},create:{key,count:1,resetAt:new Date(Date.now()+900000)},update:attempt&&attempt.resetAt>now?{count:{increment:1}}:{count:1,resetAt:new Date(Date.now()+900000)}});return null;}const claim=await db.user.updateMany({where:{id:user.id,mfaLastStep:{lt:step}},data:{mfaLastStep:step}});if(!claim.count)return null;}
+  if(user.mfaEnabled){
+   let plainSecret:string|null=null;
+   if(user.mfaSecret){try{plainSecret=unseal(user.mfaSecret);}catch(e){if(process.env.AUTH_DEBUG==='1')console.error('[auth] TOTP unseal failed for user',user.id,'- AUTH_SECRET likely differs from the one used at 2FA setup time.',e instanceof Error?e.message:e);}}
+   const step=plainSecret?verifyOtp(plainSecret,String(c.code??''),user.mfaLastStep):null;
+   if(process.env.AUTH_DEBUG==='1')console.error('[auth] mfa check for user',user.id,'plainSecret:',plainSecret?'decrypted-ok':'decrypt-failed-or-missing','step:',step,'now:',Date.now(),'mfaLastStep:',user.mfaLastStep);
+   if(!step){await db.authAttempt.upsert({where:{key},create:{key,count:1,resetAt:new Date(Date.now()+900000)},update:attempt&&attempt.resetAt>now?{count:{increment:1}}:{count:1,resetAt:new Date(Date.now()+900000)}});return null;}
+   const claim=await db.user.updateMany({where:{id:user.id,mfaLastStep:{lt:step}},data:{mfaLastStep:step}});if(!claim.count)return null;
+  }
   await db.authAttempt.deleteMany({where:{key}});await db.user.update({where:{id:user.id},data:{lastSeenAt:new Date()}});return {id:user.id,name:user.name,email:user.email};
  }})],
  callbacks:{async jwt({token,user}){if(user){token.uid=user.id;token.version=(await db.user.findUnique({where:{id:user.id}}))?.sessionVersion;}return token;},async session({session,token}){const current=await db.user.findUnique({where:{id:String(token.uid)}});if(session.user)session.user.id=current?.active&&current.sessionVersion===token.version?String(token.uid):'';return session;}},
